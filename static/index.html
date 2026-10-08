@@ -1015,6 +1015,34 @@ async function loadTraders() {
                                 ? " ↓"
                                 : "";
 
+                    const history = Array.isArray(trader.history)
+                        ? trader.history
+                        : [];
+                    
+                    const historyHtml =
+                        history.length === 0
+                            ? `<div class="history-empty">No score history yet</div>`
+                            : `
+                                <div class="history-section">
+                                    <div class="history-title">
+                                        SCORE HISTORY
+                                    </div>
+                    
+                                    <div class="history-values">
+                                        ${history.map(point => `
+                                            <div class="history-point">
+                                                <span class="history-score">
+                                                    ${Number(point.score || 0).toFixed(2)}
+                                                </span>
+                                                <span class="history-date">
+                                                    ${formatHistoryDate(point.observed_at)}
+                                                </span>
+                                            </div>
+                                        `).join("")}
+                                    </div>
+                                </div>
+                            `;
+
                     return `
                         <div class="trader-card">
 
@@ -1186,6 +1214,26 @@ async function loadTraders() {
             </div>
         `;
     }
+}
+
+function formatHistoryDate(value) {
+    if (!value) {
+        return "";
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+
+    return date.toLocaleDateString(
+        undefined,
+        {
+            month: "short",
+            day: "numeric"
+        }
+    );
 }
 
 
