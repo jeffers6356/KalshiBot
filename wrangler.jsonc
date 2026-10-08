@@ -1,0 +1,12 @@
+{
+  "name": "kalshibot",
+  "main": "worker.py",
+  "compatibility_date": "2026-10-08",
+  "compatibility_flags": [
+    "python_workers"
+  ],
+  "assets": {
+    "directory": "./static",
+    "binding": "ASSETS"
+  }
+}
