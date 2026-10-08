@@ -218,14 +218,5 @@ class KalshiClient:
         }
 
     async def health_check(self) -> bool:
-        """
-        Make a very small public API request to verify connectivity.
-        """
-        try:
-            data = await self.markets_page(
-                status="open",
-                limit=1,
-            )
-            return "markets" in data
-        except Exception:
-            return False
+    data = await self.markets_page(status="open", limit=1)
+    return "markets" in data
