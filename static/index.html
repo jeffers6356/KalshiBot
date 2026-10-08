@@ -1133,7 +1133,9 @@ async function loadTrades() {
             await response.json();
 
         const trades =
-            data.trades || [];
+            Array.isArray(data)
+                ? data
+                : (data.trades || []);
 
         const tbody =
             document.getElementById(
