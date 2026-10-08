@@ -57,42 +57,48 @@ def normalize_entry(entry):
             entry.get("timeframe") or "week"
         ).strip().lower(),
 
-        "category": str(
-            entry.get("category") or ""
-        ).strip(),
-
         "rank": int(
             entry.get("rank") or 0
         ),
 
-        "value": float(
-            entry.get("value") or 0
+        "value": round(
+            float(entry.get("value") or 0),
+            8,
         ),
     }
 
 
-def snapshot_hash(entries):
+def snapshot_signature(entries):
+    """
+    Create a stable signature for the actual leaderboard data.
+
+    We intentionally ignore:
+      - observed_at
+      - category
+
+    Those fields should not make identical leaderboard
+    data look like a new snapshot.
+    """
+
     normalized = []
 
     for entry in entries:
+        item = normalize_entry(entry)
+
         normalized.append(
-            normalize_entry(entry)
+            (
+                item["username"],
+                item["leaderboard"],
+                item["timeframe"],
+                item["rank"],
+                item["value"],
+            )
         )
 
-    normalized.sort(
-        key=lambda item: (
-            item["username"],
-            item["leaderboard"],
-            item["timeframe"],
-            item["category"],
-            item["rank"],
-            item["value"],
-        )
-    )
+    normalized.sort()
 
     payload = json.dumps(
         normalized,
-        sort_keys=True,
         separators=(",", ":"),
     )
 
@@ -111,7 +117,6 @@ def find_existing_snapshot(entries):
                 username,
                 leaderboard,
                 timeframe,
-                category,
                 rank,
                 value,
                 observed_at
@@ -125,14 +130,12 @@ def find_existing_snapshot(entries):
     snapshots = {}
 
     for row in rows:
-        key = (
-            row["observed_at"],
-            row["timeframe"],
-        )
+
+        key = row["observed_at"]
 
         snapshots.setdefault(
             key,
-            [],
+            []
         )
 
         snapshots[key].append(
@@ -140,30 +143,35 @@ def find_existing_snapshot(entries):
                 "username": row["username"],
                 "leaderboard": row["leaderboard"],
                 "timeframe": row["timeframe"],
-                "category": row["category"],
                 "rank": row["rank"],
                 "value": row["value"],
             }
         )
 
-    incoming_hash = snapshot_hash(entries)
+    incoming_signature = snapshot_signature(
+        entries
+    )
 
     for (
         observed_at,
-        timeframe,
-    ), snapshot_entries in snapshots.items():
+        snapshot_entries,
+    ) in snapshots.items():
 
-        if snapshot_hash(
+        existing_signature = snapshot_signature(
             snapshot_entries
-        ) == incoming_hash:
+        )
 
+        if existing_signature == incoming_signature:
             return observed_at
 
     return None
 
 
 def main():
-    print("Loading leaderboard data from:")
+
+    print(
+        "Loading leaderboard data from:"
+    )
     print(DATA_FILE)
     print()
 
@@ -174,7 +182,9 @@ def main():
     )
 
     if not entries:
-        print("No leaderboard entries found.")
+        print(
+            "No leaderboard entries found."
+        )
         return
 
     prepared = []
@@ -184,7 +194,9 @@ def main():
         if not isinstance(entry, dict):
             continue
 
-        normalized = normalize_entry(entry)
+        normalized = normalize_entry(
+            entry
+        )
 
         if not normalized["username"]:
             continue
@@ -215,21 +227,27 @@ def main():
     )
 
     if existing_snapshot:
+
         print()
         print(
             "This leaderboard data already exists "
             "as a recorded snapshot."
         )
+
         print(
             f"Existing snapshot: {existing_snapshot}"
         )
+
         print()
         print(
             "No new snapshot created."
         )
+
         return
 
-    # One timestamp for the entire import.
+    #
+    # This is a genuinely new snapshot.
+    #
     snapshot_time = datetime.now(
         timezone.utc
     ).isoformat()
