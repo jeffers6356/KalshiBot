@@ -334,6 +334,37 @@ async def add_activity(activity: ActivityIn):
         "ok": True,
     }
 
+@app.get("/api/smart-money")
+async def smart_money(
+    window_minutes: int = 60,
+    min_dollars: float = 500,
+    min_trades: int = 2,
+    limit: int = 25,
+):
+    from .smart_money import smart_money_signals
+
+    try:
+        signals = smart_money_signals(
+            window_minutes=window_minutes,
+            min_dollars=min_dollars,
+            min_trades=min_trades,
+            limit=limit,
+        )
+
+        return {
+            "ok": True,
+            "window_minutes": window_minutes,
+            "min_dollars": min_dollars,
+            "min_trades": min_trades,
+            "signals": signals,
+        }
+
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": str(exc),
+            "signals": [],
+        }
 
 @app.get("/api/signals")
 async def signals(
