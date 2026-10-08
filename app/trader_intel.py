@@ -423,6 +423,10 @@ def trader_intelligence(
 
                 "score": current["score"],
 
+                "score_band": _score_band(
+                    current["score"]
+                ),
+
                 "profit_score": current[
                     "profit_score"
                 ],
