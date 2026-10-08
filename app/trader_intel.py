@@ -417,7 +417,7 @@ def trader_intelligence(
             else 0.0
         )
 
-                history = []
+        history = []
 
         for snapshot in snapshot_scores:
             history.append(
