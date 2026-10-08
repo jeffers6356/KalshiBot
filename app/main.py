@@ -229,8 +229,10 @@ async def get_trades(
 
 
 @app.get("/api/trader-records")
-async def get_traders():
-    return trader_scores()
+async def get_traders(request: Request):
+    db = get_db(request)
+
+    return await trader_scores(db)
 
 
 @app.post("/api/traders")
@@ -363,16 +365,19 @@ async def smart_money(
             "signals": [],
         }
 
-
 @app.get("/api/traders")
 async def traders(
+    request: Request,
     min_observations: int = 1,
     limit: int = 25,
 ):
     from .trader_intel import top_traders
 
     try:
-        data = top_traders(
+        db = get_db(request)
+
+        data = await top_traders(
+            db,
             min_observations=min_observations,
             limit=limit,
         )
@@ -391,13 +396,20 @@ async def traders(
             "count": 0,
         }
 
-
 @app.get("/api/traders/{username}")
-async def trader(username: str):
+async def trader(
+    request: Request,
+    username: str,
+):
     from .trader_intel import trader_detail
 
     try:
-        data = trader_detail(username)
+        db = get_db(request)
+
+        data = await trader_detail(
+            db,
+            username,
+        )
 
         if data is None:
             return {
@@ -415,8 +427,7 @@ async def trader(username: str):
             "ok": False,
             "error": str(exc),
         }
-
-
+        
 @app.get("/api/signals")
 async def signals(
     request: Request,
