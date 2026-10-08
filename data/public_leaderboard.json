@@ -1,0 +1,224 @@
+{
+  "source": "Kalshi Social public leaderboard",
+  "timeframe": "week",
+  "entries": [
+    {
+      "username": "BaronVonBid",
+      "leaderboard": "profit",
+      "rank": 7,
+      "value": 96979
+    },
+    {
+      "username": "quiet.badger5137",
+      "leaderboard": "profit",
+      "rank": 11,
+      "value": 76058
+    },
+    {
+      "username": "soupwins",
+      "leaderboard": "profit",
+      "rank": 12,
+      "value": 73875
+    },
+    {
+      "username": "pnlgoblin",
+      "leaderboard": "profit",
+      "rank": 17,
+      "value": 55476
+    },
+    {
+      "username": "CroissantCowboy",
+      "leaderboard": "profit",
+      "rank": 20,
+      "value": 44847
+    },
+    {
+      "username": "snappy.gecko8804",
+      "leaderboard": "profit",
+      "rank": 21,
+      "value": 43495
+    },
+    {
+      "username": "fomomancer",
+      "leaderboard": "profit",
+      "rank": 23,
+      "value": 42343
+    },
+    {
+      "username": "imaminnow",
+      "leaderboard": "profit",
+      "rank": 26,
+      "value": 34381
+    },
+    {
+      "username": "DeltaDuke",
+      "leaderboard": "profit",
+      "rank": 27,
+      "value": 30925
+    },
+    {
+      "username": "oatmilk",
+      "leaderboard": "profit",
+      "rank": 28,
+      "value": 29542
+    },
+    {
+      "username": "brave.walrus2261",
+      "leaderboard": "profit",
+      "rank": 32,
+      "value": 25311
+    },
+    {
+      "username": "ThimbletonIV",
+      "leaderboard": "profit",
+      "rank": 33,
+      "value": 25008
+    },
+
+    {
+      "username": "witty.falcon1093",
+      "leaderboard": "volume",
+      "rank": 11,
+      "value": 13134321
+    },
+    {
+      "username": "BaronVonBid",
+      "leaderboard": "volume",
+      "rank": 12,
+      "value": 11725083
+    },
+    {
+      "username": "hedgewizard",
+      "leaderboard": "volume",
+      "rank": 13,
+      "value": 11581839
+    },
+    {
+      "username": "buttertoast",
+      "leaderboard": "volume",
+      "rank": 18,
+      "value": 7952032
+    },
+    {
+      "username": "noshorts",
+      "leaderboard": "volume",
+      "rank": 20,
+      "value": 7214082
+    },
+    {
+      "username": "grumpy.lemur6642",
+      "leaderboard": "volume",
+      "rank": 23,
+      "value": 5508418
+    },
+    {
+      "username": "snappy.gecko8804",
+      "leaderboard": "volume",
+      "rank": 28,
+      "value": 3799034
+    },
+    {
+      "username": "daily.otter7815",
+      "leaderboard": "volume",
+      "rank": 29,
+      "value": 3776636
+    },
+    {
+      "username": "SirLoinSteak",
+      "leaderboard": "volume",
+      "rank": 30,
+      "value": 3655455
+    },
+    {
+      "username": "pnlgoblin",
+      "leaderboard": "volume",
+      "rank": 33,
+      "value": 3113557
+    },
+    {
+      "username": "PennyLoafer",
+      "leaderboard": "volume",
+      "rank": 35,
+      "value": 2908473
+    },
+    {
+      "username": "oatmilk",
+      "leaderboard": "volume",
+      "rank": 36,
+      "value": 2769669
+    },
+
+    {
+      "username": "daily.otter7815",
+      "leaderboard": "predictions",
+      "rank": 5,
+      "value": 10030
+    },
+    {
+      "username": "quiet.badger5137",
+      "leaderboard": "predictions",
+      "rank": 6,
+      "value": 9285
+    },
+    {
+      "username": "imaminnow",
+      "leaderboard": "predictions",
+      "rank": 8,
+      "value": 8206
+    },
+    {
+      "username": "PennyLoafer",
+      "leaderboard": "predictions",
+      "rank": 13,
+      "value": 4165
+    },
+    {
+      "username": "hedgewizard",
+      "leaderboard": "predictions",
+      "rank": 14,
+      "value": 4000
+    },
+    {
+      "username": "soupwins",
+      "leaderboard": "predictions",
+      "rank": 20,
+      "value": 3153
+    },
+    {
+      "username": "witty.falcon1093",
+      "leaderboard": "predictions",
+      "rank": 22,
+      "value": 2605
+    },
+    {
+      "username": "CroissantCowboy",
+      "leaderboard": "predictions",
+      "rank": 24,
+      "value": 2546
+    },
+    {
+      "username": "noshorts",
+      "leaderboard": "predictions",
+      "rank": 26,
+      "value": 2410
+    },
+    {
+      "username": "grumpy.lemur6642",
+      "leaderboard": "predictions",
+      "rank": 27,
+      "value": 2366
+    },
+    {
+      "username": "ThimbletonIV",
+      "leaderboard": "predictions",
+      "rank": 29,
+      "value": 2229
+    },
+    {
+      "username": "buttertoast",
+      "leaderboard": "predictions",
+      "rank": 32,
+      "value": 2001
+    }
+  ]
+}
