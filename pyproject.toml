@@ -5,6 +5,7 @@ description = "Kalshi Smart Money Intelligence"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi",
+    "httpx",
     "beautifulsoup4",
 ]
 
