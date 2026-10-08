@@ -1074,18 +1074,7 @@ async function loadTraders() {
                                         SCORE HISTORY
                                     </div>
                     
-                                    <div class="history-values">
-                                        ${history.map(point => `
-                                            <div class="history-point">
-                                                <span class="history-score">
-                                                    ${Number(point.score || 0).toFixed(2)}
-                                                </span>
-                                                <span class="history-date">
-                                                    ${formatHistoryDate(point.observed_at)}
-                                                </span>
-                                            </div>
-                                        `).join("")}
-                                    </div>
+                                    ${buildHistoryChart(history)}
                                 </div>
                             `;
 
