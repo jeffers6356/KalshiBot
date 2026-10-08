@@ -60,49 +60,49 @@ class KalshiClient:
         await self.close()
 
     async def _get(
-            self,
-            path: str,
-            params: Optional[Dict[str, Any]] = None,
-        ) -> Dict[str, Any]:
-            url = f"{self.base_url}/{path.lstrip('/')}"
-            last_error = None
+        self,
+        path: str,
+        params: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        url = f"{self.base_url}/{path.lstrip('/')}"
+        last_error = None
 
-    for attempt in range(self.retries + 1):
-        try:
-            response = await self.client.get(url, params=params)
-
-            if response.status_code == 429 or response.status_code >= 500:
+        for attempt in range(self.retries + 1):
+            try:
+                response = await self.client.get(url, params=params)
+    
+                if response.status_code == 429 or response.status_code >= 500:
+                    if attempt < self.retries:
+                        delay = 1.0 * (2 ** attempt)
+                        await asyncio.sleep(delay)
+                        continue
+    
+                if response.status_code >= 400:
+                    body = response.text[:1000]
+                    raise KalshiAPIError(
+                        f"Kalshi API returned HTTP {response.status_code}: "
+                        f"{body}"
+                    )
+    
+                return response.json()
+    
+            except KalshiAPIError:
+                raise
+    
+            except (httpx.HTTPError, ValueError) as exc:
+                last_error = exc
+    
                 if attempt < self.retries:
                     delay = 1.0 * (2 ** attempt)
                     await asyncio.sleep(delay)
                     continue
-
-            if response.status_code >= 400:
-                body = response.text[:1000]
-                raise KalshiAPIError(
-                    f"Kalshi API returned HTTP {response.status_code}: "
-                    f"{body}"
-                )
-
-            return response.json()
-
-        except KalshiAPIError:
-            raise
-
-        except (httpx.HTTPError, ValueError) as exc:
-            last_error = exc
-
-            if attempt < self.retries:
-                delay = 1.0 * (2 ** attempt)
-                await asyncio.sleep(delay)
-                continue
-
-            break
-
-    raise KalshiAPIError(
-        f"Kalshi API request failed: {url}. "
-        f"Last error: {last_error}"
-    ) from last_error
+    
+                break
+    
+        raise KalshiAPIError(
+            f"Kalshi API request failed: {url}. "
+            f"Last error: {last_error}"
+        ) from last_error
 
     async def markets_page(
         self,
