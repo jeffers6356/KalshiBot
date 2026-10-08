@@ -1,4 +1,5 @@
 {
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kalshibot",
   "main": "worker.py",
   "compatibility_date": "2026-10-08",
@@ -7,6 +8,7 @@
   ],
   "assets": {
     "directory": "./static",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": true
   }
 }
