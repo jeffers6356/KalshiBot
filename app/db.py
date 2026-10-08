@@ -3,38 +3,33 @@ import sqlite3
 from pathlib import Path
 
 
-# Cloudflare Workers cannot use the local SQLite filesystem.
-# Local development still uses SQLite normally.
-IS_CLOUDFLARE = os.getenv("CLOUDFLARE_WORKERS") == "1"
-
-if not IS_CLOUDFLARE:
-    DB_PATH = Path(
+def _db_path():
+    return Path(
         os.getenv(
             "KALSHI_DB_PATH",
-            str(Path(__file__).resolve().parent.parent / "data" / "kalshi.db"),
+            str(
+                Path(__file__).resolve().parent.parent
+                / "data"
+                / "kalshi.db"
+            ),
         )
     )
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-else:
-    DB_PATH = None
 
 
 def connect():
-    if IS_CLOUDFLARE:
-        raise RuntimeError(
-            "SQLite is not available in Cloudflare Workers. "
-            "Persistent storage must use Cloudflare D1."
-        )
+    db_path = _db_path()
 
-    conn = sqlite3.connect(DB_PATH)
+    # SQLite is only used when this function is explicitly called.
+    # Do not create directories during module import because Cloudflare
+    # Workers has a read-only application filesystem.
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db():
-    if IS_CLOUDFLARE:
-        return
-
     conn = connect()
 
     try:
