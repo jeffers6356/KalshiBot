@@ -1,39 +1,1145 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Kalshi Smart Money</title>
-  <style>
-    body{font-family:system-ui,sans-serif;margin:0;background:#f6f7f9;color:#17191c}
-    header{padding:28px 32px;background:#111827;color:white}
-    main{max-width:1200px;margin:24px auto;padding:0 20px}
-    .actions{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
-    button{padding:10px 14px;border:0;border-radius:8px;cursor:pointer}
-    .primary{background:#111827;color:white}.card{background:white;border:1px solid #ddd;border-radius:12px;padding:18px;margin-bottom:18px}
-    table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #eee;font-size:14px}
-    .muted{color:#6b7280}.signal{font-weight:700}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>KalshiBot — Smart Money Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+            background: #0b0f14;
+            color: #e8edf3;
+        }
+
+        header {
+            border-bottom: 1px solid #202832;
+            background: #0e141b;
+            padding: 22px 28px;
+        }
+
+        .header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            background: #1d2732;
+            font-size: 22px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: -0.4px;
+        }
+
+        .subtitle {
+            color: #8e9aa8;
+            font-size: 13px;
+            margin-top: 3px;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #8e9aa8;
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #36c98f;
+            box-shadow: 0 0 10px rgba(54, 201, 143, 0.5);
+        }
+
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 28px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            gap: 15px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .section-description {
+            margin: 4px 0 0;
+            color: #7f8b98;
+            font-size: 13px;
+        }
+
+        button {
+            border: 1px solid #2a3541;
+            background: #151d26;
+            color: #dbe3eb;
+            border-radius: 8px;
+            padding: 9px 14px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        button:hover {
+            background: #1c2732;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 30px;
+        }
+
+        .stat {
+            background: #10161e;
+            border: 1px solid #202832;
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .stat-label {
+            color: #7f8b98;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+        }
+
+        .stat-value {
+            margin-top: 8px;
+            font-size: 27px;
+            font-weight: 700;
+            letter-spacing: -0.7px;
+        }
+
+        .signal-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: 34px;
+        }
+
+        .signal {
+            background: #10161e;
+            border: 1px solid #202832;
+            border-radius: 12px;
+            padding: 18px;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+
+        .signal:hover {
+            transform: translateY(-2px);
+            border-color: #364452;
+        }
+
+        .signal-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .signal-direction {
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .signal-direction.yes {
+            color: #35d49a;
+        }
+
+        .signal-direction.no {
+            color: #ff7272;
+        }
+
+        .signal-direction.neutral {
+            color: #c1c8d0;
+        }
+
+        .score {
+            min-width: 46px;
+            height: 46px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            background: #19222c;
+            font-size: 17px;
+            font-weight: 800;
+        }
+
+        .score.strong {
+            border: 1px solid #8c6f29;
+            color: #ffd76b;
+        }
+
+        .score.moderate {
+            border: 1px solid #3f6870;
+            color: #7de2d1;
+        }
+
+        .score.watch {
+            border: 1px solid #394450;
+            color: #b8c3ce;
+        }
+
+        .signal-title {
+            margin-top: 14px;
+            font-size: 14px;
+            font-weight: 650;
+            line-height: 1.4;
+            color: #dbe2e9;
+        }
+
+        .ticker {
+            margin-top: 4px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #687583;
+            word-break: break-all;
+        }
+
+        .signal-data {
+            margin-top: 16px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .data-item {
+            background: #0c1117;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .data-label {
+            color: #697582;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-value {
+            margin-top: 4px;
+            font-size: 14px;
+            font-weight: 650;
+        }
+
+        .pressure {
+            margin-top: 14px;
+        }
+
+        .pressure-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #74818e;
+            margin-bottom: 5px;
+        }
+
+        .pressure-bar {
+            height: 7px;
+            background: #252d36;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .pressure-fill {
+            height: 100%;
+            border-radius: 10px;
+        }
+
+        .pressure-fill.yes {
+            background: #35b987;
+            margin-left: 50%;
+        }
+
+        .pressure-fill.no {
+            background: #e36161;
+            margin-left: auto;
+            margin-right: 50%;
+        }
+
+        .table-container {
+            background: #10161e;
+            border: 1px solid #202832;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 34px;
+        }
+
+        .table-scroll {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 850px;
+        }
+
+        th {
+            text-align: left;
+            color: #6f7c89;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            background: #0d1319;
+            padding: 12px 15px;
+            border-bottom: 1px solid #202832;
+        }
+
+        td {
+            padding: 13px 15px;
+            border-bottom: 1px solid #1b232c;
+            font-size: 13px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .side-yes {
+            color: #35d49a;
+            font-weight: 750;
+        }
+
+        .side-no {
+            color: #ff7272;
+            font-weight: 750;
+        }
+
+        .block {
+            display: inline-block;
+            border: 1px solid #765d26;
+            color: #e7c766;
+            background: #2a2414;
+            border-radius: 5px;
+            padding: 3px 6px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .empty {
+            color: #6f7c89;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .footer {
+            color: #596571;
+            font-size: 11px;
+            text-align: center;
+            padding: 10px 0 30px;
+        }
+
+        .error {
+            color: #ff7f7f;
+        }
+
+        @media (max-width: 1050px) {
+            .signal-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 700px) {
+            header {
+                padding: 18px;
+            }
+
+            main {
+                padding: 18px;
+            }
+
+            .header-inner {
+                align-items: flex-start;
+            }
+
+            .status {
+                display: none;
+            }
+
+            .signal-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
 </head>
+
 <body>
-<header><h1>Kalshi Smart Money</h1><div>Research & alert MVP — no auto-trading</div></header>
+
+<header>
+    <div class="header-inner">
+        <div class="brand">
+            <div class="logo">🐋</div>
+
+            <div>
+                <h1>KalshiBot</h1>
+                <div class="subtitle">
+                    Smart Money Intelligence
+                </div>
+            </div>
+        </div>
+
+        <div class="status">
+            <span class="status-dot"></span>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </div>
+</header>
+
 <main>
-  <div class="actions"><button class="primary" onclick="collect()">Collect Kalshi Data</button><button onclick="refresh()">Refresh</button></div>
-  <div id="status" class="muted"></div>
-  <div class="card"><h2>Smart-money signals</h2><div id="signals">Loading…</div></div>
-  <div class="card"><h2>Watched traders</h2><div id="traders">Loading…</div></div>
-  <div class="card"><h2>Recent market trades</h2><div id="trades">Loading…</div></div>
+
+    <!-- OVERVIEW -->
+
+    <div class="stats">
+
+        <div class="stat">
+            <div class="stat-label">
+                Smart Money Signals
+            </div>
+
+            <div
+                class="stat-value"
+                id="signalCount"
+            >
+                —
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">
+                Strongest Signal
+            </div>
+
+            <div
+                class="stat-value"
+                id="strongestScore"
+            >
+                —
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">
+                Large-Money Volume
+            </div>
+
+            <div
+                class="stat-value"
+                id="largeMoney"
+            >
+                —
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-label">
+                Markets Monitored
+            </div>
+
+            <div
+                class="stat-value"
+                id="marketCount"
+            >
+                —
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- SMART MONEY -->
+
+    <div class="section-header">
+
+        <div>
+            <h2 class="section-title">
+                🔥 Smart Money Signals
+            </h2>
+
+            <p class="section-description">
+                Markets with concentrated large-money activity.
+            </p>
+        </div>
+
+        <button onclick="loadDashboard()">
+            Refresh
+        </button>
+
+    </div>
+
+    <div
+        class="signal-grid"
+        id="signalGrid"
+    >
+        <div class="empty">
+            Loading signals...
+        </div>
+    </div>
+
+
+    <!-- RECENT TRADES -->
+
+    <div class="section-header">
+
+        <div>
+            <h2 class="section-title">
+                🐋 Recent Large Trades
+            </h2>
+
+            <p class="section-description">
+                Individual trades meeting the $500 large-money threshold.
+            </p>
+        </div>
+
+    </div>
+
+    <div class="table-container">
+
+        <div class="table-scroll">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Market</th>
+                        <th>Side</th>
+                        <th>Contracts</th>
+                        <th>Price</th>
+                        <th>Notional</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+
+                <tbody id="tradeTable">
+
+                    <tr>
+                        <td
+                            colspan="7"
+                            class="empty"
+                        >
+                            Loading trades...
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+    <div class="footer">
+        KalshiBot v0.1.1 · Large-money activity is not necessarily attributable
+        to a single trader.
+    </div>
+
 </main>
+
+
 <script>
-async function j(url,opts){const r=await fetch(url,opts);return r.json()}
-async function collect(){document.getElementById('status').textContent='Collecting…';const x=await j('/api/collect',{method:'POST'});document.getElementById('status').textContent=`Collected ${x.markets} markets and ${x.trades} trades.`;refresh()}
-async function refresh(){
- const [s,t,tr]=await Promise.all([j('/api/signals'),j('/api/traders'),j('/api/trades?limit=30')]);
- document.getElementById('signals').innerHTML=s.length?s.map(x=>`<div class="card"><span class="signal">${x.consensus} — ${(x.confidence*100).toFixed(0)}%</span><br><span class="muted">${x.market_ticker} · YES: ${x.yes_traders.join(', ')||'—'} · NO: ${x.no_traders.join(', ')||'—'}</span></div>`).join(''):'No consensus signals yet.';
- document.getElementById('traders').innerHTML=t.length?`<table><tr><th>Trader</th><th>Score</th><th>ROI</th><th>Profit</th><th>Win rate</th></tr>${t.map(x=>`<tr><td>${x.username}</td><td>${x.score.toFixed(1)}</td><td>${(x.roi*100).toFixed(1)}%</td><td>$${x.profit.toLocaleString()}</td><td>${(x.win_rate*100).toFixed(1)}%</td></tr>`).join('')}</table>`:'No traders on the watchlist.';
- document.getElementById('trades').innerHTML=tr.length?`<table><tr><th>Time</th><th>Market</th><th>Side</th><th>Price</th><th>Contracts</th></tr>${tr.map(x=>`<tr><td>${x.created_time}</td><td>${x.ticker}</td><td>${x.side}</td><td>${(x.yes_price*100).toFixed(1)}¢</td><td>${x.count}</td></tr>`).join('')}</table>`:'No trades collected.';
+
+const API_BASE = "";
+
+
+function money(value) {
+
+    const number = Number(value || 0);
+
+    return number.toLocaleString(
+        "en-US",
+        {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: 0
+        }
+    );
 }
-refresh();
+
+
+function number(value) {
+
+    return Number(value || 0)
+        .toLocaleString("en-US", {
+            maximumFractionDigits: 0
+        });
+}
+
+
+function timeAgo(timestamp) {
+
+    if (!timestamp) {
+        return "—";
+    }
+
+    const date = new Date(timestamp);
+
+    if (Number.isNaN(date.getTime())) {
+        return timestamp;
+    }
+
+    const seconds =
+        Math.floor(
+            (Date.now() - date.getTime()) / 1000
+        );
+
+    if (seconds < 60) {
+        return `${seconds}s ago`;
+    }
+
+    const minutes =
+        Math.floor(seconds / 60);
+
+    if (minutes < 60) {
+        return `${minutes}m ago`;
+    }
+
+    const hours =
+        Math.floor(minutes / 60);
+
+    if (hours < 24) {
+        return `${hours}h ago`;
+    }
+
+    return `${Math.floor(hours / 24)}d ago`;
+}
+
+
+function directionClass(direction) {
+
+    if (direction === "YES") {
+        return "yes";
+    }
+
+    if (direction === "NO") {
+        return "no";
+    }
+
+    return "neutral";
+}
+
+
+function renderSignal(signal) {
+
+    const direction =
+        signal.direction || "NEUTRAL";
+
+    const score =
+        Number(signal.score || 0);
+
+    const strength =
+        String(signal.strength || "WATCH")
+            .toLowerCase();
+
+    const pressure =
+        Number(signal.pressure || 0);
+
+    const pressurePercent =
+        Math.round(
+            Math.abs(pressure) * 100
+        );
+
+    let pressureWidth =
+        Math.max(
+            2,
+            pressurePercent / 2
+        );
+
+    const pressureClass =
+        pressure >= 0 ? "yes" : "no";
+
+    return `
+
+        <div class="signal">
+
+            <div class="signal-top">
+
+                <div>
+
+                    <div
+                        class="signal-direction ${directionClass(direction)}"
+                    >
+                        ${strength.toUpperCase()}
+                        ${direction}
+                    </div>
+
+                    <div class="signal-title">
+                        ${escapeHtml(
+                            signal.title || signal.ticker
+                        )}
+                    </div>
+
+                    <div class="ticker">
+                        ${escapeHtml(
+                            signal.ticker || ""
+                        )}
+                    </div>
+
+                </div>
+
+                <div
+                    class="score ${strength}"
+                >
+                    ${score}
+                </div>
+
+            </div>
+
+
+            <div class="signal-data">
+
+                <div class="data-item">
+
+                    <div class="data-label">
+                        Large Money
+                    </div>
+
+                    <div class="data-value">
+                        ${money(
+                            signal.total_dollars
+                        )}
+                    </div>
+
+                </div>
+
+
+                <div class="data-item">
+
+                    <div class="data-label">
+                        Trades
+                    </div>
+
+                    <div class="data-value">
+                        ${number(
+                            signal.total_trades
+                        )}
+                    </div>
+
+                </div>
+
+
+                <div class="data-item">
+
+                    <div class="data-label">
+                        YES
+                    </div>
+
+                    <div class="data-value side-yes">
+                        ${money(
+                            signal.yes_dollars
+                        )}
+                    </div>
+
+                </div>
+
+
+                <div class="data-item">
+
+                    <div class="data-label">
+                        NO
+                    </div>
+
+                    <div class="data-value side-no">
+                        ${money(
+                            signal.no_dollars
+                        )}
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="pressure">
+
+                <div class="pressure-header">
+
+                    <span>
+                        Directional pressure
+                    </span>
+
+                    <span>
+                        ${pressurePercent}% ${direction}
+                    </span>
+
+                </div>
+
+                <div class="pressure-bar">
+
+                    <div
+                        class="pressure-fill ${pressureClass}"
+                        style="width: ${pressureWidth}%"
+                    ></div>
+
+                </div>
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+function renderTrades(trades) {
+
+    const table =
+        document.getElementById(
+            "tradeTable"
+        );
+
+    if (!trades || trades.length === 0) {
+
+        table.innerHTML = `
+            <tr>
+                <td
+                    colspan="7"
+                    class="empty"
+                >
+                    No large trades detected.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    table.innerHTML =
+        trades.map(trade => {
+
+            const side =
+                String(
+                    trade.side || ""
+                ).toUpperCase();
+
+            const sideClass =
+                side === "YES"
+                    ? "side-yes"
+                    : "side-no";
+
+            const block =
+                trade.is_block_trade
+                    ? `<span class="block">BLOCK</span>`
+                    : "—";
+
+            return `
+
+                <tr>
+
+                    <td>
+                        ${timeAgo(
+                            trade.created_time
+                        )}
+                    </td>
+
+                    <td>
+                        <strong>
+                            ${escapeHtml(
+                                trade.title ||
+                                trade.ticker ||
+                                "Unknown"
+                            )}
+                        </strong>
+                        <br>
+                        <span class="ticker">
+                            ${escapeHtml(
+                                trade.ticker || ""
+                            )}
+                        </span>
+                    </td>
+
+                    <td
+                        class="${sideClass}"
+                    >
+                        ${side}
+                    </td>
+
+                    <td>
+                        ${number(
+                            trade.contracts
+                        )}
+                    </td>
+
+                    <td>
+                        ${(
+                            Number(
+                                trade.price || 0
+                            ) * 100
+                        ).toFixed(1)}¢
+                    </td>
+
+                    <td>
+                        <strong>
+                            ${money(
+                                trade.notional
+                            )}
+                        </strong>
+                    </td>
+
+                    <td>
+                        ${block}
+                    </td>
+
+                </tr>
+            `;
+
+        }).join("");
+}
+
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+async function getJson(url) {
+
+    const response =
+        await fetch(url);
+
+    if (!response.ok) {
+        throw new Error(
+            `HTTP ${response.status}`
+        );
+    }
+
+    return await response.json();
+}
+
+
+async function loadDashboard() {
+
+    const status =
+        document.getElementById(
+            "statusText"
+        );
+
+    try {
+
+        status.textContent =
+            "Updating...";
+
+
+        const [
+            smartMoney,
+            trades,
+            markets
+        ] = await Promise.all([
+
+            getJson(
+                `${API_BASE}/api/smart-money` +
+                `?window_minutes=60` +
+                `&min_dollars=500` +
+                `&min_trades=2` +
+                `&limit=25`
+            ),
+
+            getJson(
+                `${API_BASE}/api/trades?limit=50`
+            ),
+
+            getJson(
+                `${API_BASE}/api/markets?limit=1`
+            )
+
+        ]);
+
+
+        if (!smartMoney.ok) {
+            throw new Error(
+                smartMoney.error ||
+                "Smart-money API error"
+            );
+        }
+
+
+        const signals =
+            smartMoney.signals || [];
+
+
+        renderSignals(signals);
+
+        renderTrades(
+            prepareTrades(
+                trades
+            )
+        );
+
+
+        document.getElementById(
+            "signalCount"
+        ).textContent =
+            signals.length;
+
+
+        document.getElementById(
+            "strongestScore"
+        ).textContent =
+            signals.length
+                ? signals[0].score
+                : "—";
+
+
+        const totalMoney =
+            signals.reduce(
+                (sum, signal) =>
+                    sum +
+                    Number(
+                        signal.total_dollars || 0
+                    ),
+                0
+            );
+
+
+        document.getElementById(
+            "largeMoney"
+        ).textContent =
+            money(totalMoney);
+
+
+        document.getElementById(
+            "marketCount"
+        ).textContent =
+            markets.markets
+                ? markets.markets.length
+                : "—";
+
+
+        status.textContent =
+            "Connected";
+
+    } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+            "Connection error";
+
+        document.getElementById(
+            "signalGrid"
+        ).innerHTML = `
+            <div class="empty error">
+                Unable to load dashboard data.
+                <br>
+                ${escapeHtml(
+                    error.message
+                )}
+            </div>
+        `;
+    }
+}
+
+
+function renderSignals(signals) {
+
+    const grid =
+        document.getElementById(
+            "signalGrid"
+        );
+
+    if (!signals.length) {
+
+        grid.innerHTML = `
+            <div class="empty">
+                No qualifying smart-money signals
+                in the current window.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    grid.innerHTML =
+        signals
+            .map(renderSignal)
+            .join("");
+}
+
+
+function prepareTrades(response) {
+
+    if (!response) {
+        return [];
+    }
+
+    if (Array.isArray(response)) {
+        return response;
+    }
+
+    return response.trades || [];
+}
+
+
+loadDashboard();
+
+
+// Refresh every 30 seconds.
+
+setInterval(
+    loadDashboard,
+    30000
+);
+
 </script>
+
 </body>
 </html>
