@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>KalshiBot — Smart Money Dashboard</title>
+    <title>KalshiBot — Smart Money Intelligence</title>
 
     <style>
         * {
@@ -13,59 +13,40 @@
 
         body {
             margin: 0;
+            background: #0b0f14;
+            color: #e8edf3;
             font-family:
                 Inter,
-                ui-sans-serif,
                 system-ui,
                 -apple-system,
                 BlinkMacSystemFont,
                 "Segoe UI",
                 sans-serif;
-            background: #0b0f14;
-            color: #e8edf3;
+        }
+
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+            padding: 28px;
         }
 
         header {
-            border-bottom: 1px solid #202832;
-            background: #0e141b;
-            padding: 22px 28px;
-        }
-
-        .header-inner {
-            max-width: 1400px;
-            margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            gap: 20px;
+            margin-bottom: 28px;
         }
 
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo {
-            width: 42px;
-            height: 42px;
-            border-radius: 10px;
-            display: grid;
-            place-items: center;
-            background: #1d2732;
-            font-size: 22px;
-        }
-
-        h1 {
+        .brand h1 {
             margin: 0;
-            font-size: 22px;
-            letter-spacing: -0.4px;
+            font-size: 28px;
+            letter-spacing: -0.5px;
         }
 
-        .subtitle {
-            color: #8e9aa8;
-            font-size: 13px;
-            margin-top: 3px;
+        .brand p {
+            margin: 5px 0 0;
+            color: #8995a3;
+            font-size: 14px;
         }
 
         .status {
@@ -80,95 +61,80 @@
             width: 9px;
             height: 9px;
             border-radius: 50%;
-            background: #36c98f;
-            box-shadow: 0 0 10px rgba(54, 201, 143, 0.5);
+            background: #39d98a;
+            box-shadow: 0 0 10px rgba(57, 217, 138, 0.55);
         }
 
-        main {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 28px;
+        .stats {
+            display: grid;
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: #111720;
+            border: 1px solid #202a36;
+            border-radius: 12px;
+            padding: 18px;
+        }
+
+        .stat-label {
+            color: #7f8b99;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .stat-value {
+            margin-top: 8px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .section {
+            margin-top: 24px;
         }
 
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 14px;
-            gap: 15px;
+            margin-bottom: 12px;
         }
 
         .section-title {
-            margin: 0;
             font-size: 18px;
-        }
-
-        .section-description {
-            margin: 4px 0 0;
-            color: #7f8b98;
-            font-size: 13px;
-        }
-
-        button {
-            border: 1px solid #2a3541;
-            background: #151d26;
-            color: #dbe3eb;
-            border-radius: 8px;
-            padding: 9px 14px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-
-        button:hover {
-            background: #1c2732;
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 14px;
-            margin-bottom: 30px;
-        }
-
-        .stat {
-            background: #10161e;
-            border: 1px solid #202832;
-            border-radius: 12px;
-            padding: 18px;
-        }
-
-        .stat-label {
-            color: #7f8b98;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.7px;
-        }
-
-        .stat-value {
-            margin-top: 8px;
-            font-size: 27px;
             font-weight: 700;
-            letter-spacing: -0.7px;
         }
 
-        .signal-grid {
+        .section-subtitle {
+            color: #778391;
+            font-size: 12px;
+        }
+
+        .panel {
+            background: #111720;
+            border: 1px solid #202a36;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* Smart money */
+
+        .signals {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns:
+                repeat(auto-fit, minmax(300px, 1fr));
             gap: 14px;
-            margin-bottom: 34px;
         }
 
-        .signal {
-            background: #10161e;
-            border: 1px solid #202832;
+        .signal-card {
+            background: #111720;
+            border: 1px solid #202a36;
             border-radius: 12px;
             padding: 18px;
-            transition: transform 0.15s ease, border-color 0.15s ease;
-        }
-
-        .signal:hover {
-            transform: translateY(-2px);
-            border-color: #364452;
         }
 
         .signal-top {
@@ -178,160 +144,241 @@
             gap: 12px;
         }
 
-        .signal-direction {
-            font-size: 14px;
+        .direction {
+            font-size: 12px;
             font-weight: 800;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.08em;
         }
 
-        .signal-direction.yes {
-            color: #35d49a;
+        .direction.yes {
+            color: #42d392;
         }
 
-        .signal-direction.no {
-            color: #ff7272;
+        .direction.no {
+            color: #ff7185;
         }
 
-        .signal-direction.neutral {
-            color: #c1c8d0;
+        .direction.neutral {
+            color: #9ba7b5;
+        }
+
+        .signal-title {
+            margin-top: 7px;
+            font-weight: 700;
+            line-height: 1.35;
         }
 
         .score {
-            min-width: 46px;
-            height: 46px;
-            border-radius: 10px;
-            display: grid;
-            place-items: center;
-            background: #19222c;
+            min-width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #18212c;
+            border: 1px solid #2a3746;
             font-size: 17px;
             font-weight: 800;
         }
 
-        .score.strong {
-            border: 1px solid #8c6f29;
-            color: #ffd76b;
-        }
-
-        .score.moderate {
-            border: 1px solid #3f6870;
-            color: #7de2d1;
-        }
-
-        .score.watch {
-            border: 1px solid #394450;
-            color: #b8c3ce;
-        }
-
-        .signal-title {
-            margin-top: 14px;
-            font-size: 14px;
-            font-weight: 650;
-            line-height: 1.4;
-            color: #dbe2e9;
-        }
-
-        .ticker {
-            margin-top: 4px;
-            font-family: monospace;
-            font-size: 11px;
-            color: #687583;
-            word-break: break-all;
-        }
-
-        .signal-data {
-            margin-top: 16px;
+        .signal-meta {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 18px;
         }
 
-        .data-item {
-            background: #0c1117;
+        .meta-box {
+            background: #0d131b;
             border-radius: 8px;
-            padding: 10px;
+            padding: 9px;
         }
 
-        .data-label {
-            color: #697582;
+        .meta-label {
+            color: #6f7b89;
             font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
-        .data-value {
+        .meta-value {
             margin-top: 4px;
-            font-size: 14px;
-            font-weight: 650;
+            font-size: 13px;
+            font-weight: 700;
         }
 
         .pressure {
-            margin-top: 14px;
+            margin-top: 15px;
         }
 
-        .pressure-header {
+        .pressure-label {
             display: flex;
             justify-content: space-between;
+            color: #778391;
             font-size: 11px;
-            color: #74818e;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
         }
 
-        .pressure-bar {
+        .pressure-track {
             height: 7px;
-            background: #252d36;
-            border-radius: 10px;
+            border-radius: 20px;
+            background: #202833;
             overflow: hidden;
         }
 
         .pressure-fill {
             height: 100%;
-            border-radius: 10px;
+            border-radius: 20px;
         }
 
         .pressure-fill.yes {
-            background: #35b987;
-            margin-left: 50%;
+            background: #39d98a;
         }
 
         .pressure-fill.no {
-            background: #e36161;
-            margin-left: auto;
-            margin-right: 50%;
+            background: #ff657b;
         }
 
-        .table-container {
-            background: #10161e;
-            border: 1px solid #202832;
+        /* Traders */
+
+        .traders {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(280px, 1fr));
+            gap: 14px;
+        }
+
+        .trader-card {
+            background: #111720;
+            border: 1px solid #202a36;
             border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 34px;
+            padding: 17px;
         }
 
-        .table-scroll {
-            overflow-x: auto;
+        .trader-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
         }
+
+        .trader-rank {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #18212c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9eabb9;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .trader-name {
+            flex: 1;
+            font-size: 15px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .trader-score {
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .score-high {
+            color: #42d392;
+        }
+
+        .score-medium {
+            color: #f0c75e;
+        }
+
+        .score-low {
+            color: #9aa6b3;
+        }
+
+        .trader-bar {
+            margin-top: 14px;
+            height: 6px;
+            border-radius: 10px;
+            background: #202833;
+            overflow: hidden;
+        }
+
+        .trader-bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            background: #5e8cff;
+        }
+
+        .trader-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .trader-stat {
+            background: #0d131b;
+            border-radius: 8px;
+            padding: 9px;
+        }
+
+        .trader-stat-label {
+            color: #6f7b89;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .trader-stat-value {
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 12px;
+        }
+
+        .chip {
+            padding: 4px 7px;
+            border-radius: 5px;
+            background: #1a2430;
+            color: #8996a5;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        /* Tables */
 
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 850px;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #1d2630;
+            font-size: 12px;
         }
 
         th {
-            text-align: left;
-            color: #6f7c89;
+            color: #697584;
             font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.7px;
-            background: #0d1319;
-            padding: 12px 15px;
-            border-bottom: 1px solid #202832;
+            letter-spacing: 0.08em;
         }
 
         td {
-            padding: 13px 15px;
-            border-bottom: 1px solid #1b232c;
-            font-size: 13px;
+            color: #cbd3dc;
         }
 
         tr:last-child td {
@@ -339,76 +386,58 @@
         }
 
         .side-yes {
-            color: #35d49a;
-            font-weight: 750;
+            color: #42d392;
+            font-weight: 700;
         }
 
         .side-no {
-            color: #ff7272;
-            font-weight: 750;
-        }
-
-        .block {
-            display: inline-block;
-            border: 1px solid #765d26;
-            color: #e7c766;
-            background: #2a2414;
-            border-radius: 5px;
-            padding: 3px 6px;
-            font-size: 10px;
+            color: #ff7185;
             font-weight: 700;
         }
 
         .empty {
-            color: #6f7c89;
             padding: 30px;
             text-align: center;
+            color: #6f7b89;
+            font-size: 13px;
         }
 
-        .footer {
-            color: #596571;
-            font-size: 11px;
+        footer {
+            margin-top: 28px;
             text-align: center;
-            padding: 10px 0 30px;
+            color: #596574;
+            font-size: 11px;
         }
 
-        .error {
-            color: #ff7f7f;
+        @media (max-width: 900px) {
+            .stats {
+                grid-template-columns:
+                    repeat(2, minmax(0, 1fr));
+            }
         }
 
-        @media (max-width: 1050px) {
-            .signal-grid {
-                grid-template-columns: repeat(2, 1fr);
+        @media (max-width: 600px) {
+            .container {
+                padding: 16px;
+            }
+
+            header {
+                align-items: flex-start;
+                gap: 15px;
+                flex-direction: column;
             }
 
             .stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
-        @media (max-width: 700px) {
-            header {
-                padding: 18px;
-            }
-
-            main {
-                padding: 18px;
-            }
-
-            .header-inner {
-                align-items: flex-start;
-            }
-
-            .status {
-                display: none;
-            }
-
-            .signal-grid {
                 grid-template-columns: 1fr;
             }
 
-            .stats {
+            .signal-meta {
                 grid-template-columns: 1fr 1fr;
+            }
+
+            th:nth-child(n + 4),
+            td:nth-child(n + 4) {
+                display: none;
             }
         }
     </style>
@@ -416,79 +445,73 @@
 
 <body>
 
-<header>
-    <div class="header-inner">
-        <div class="brand">
-            <div class="logo">🐋</div>
+<div class="container">
 
-            <div>
-                <h1>KalshiBot</h1>
-                <div class="subtitle">
-                    Smart Money Intelligence
-                </div>
-            </div>
+    <header>
+        <div class="brand">
+            <h1>KalshiBot</h1>
+            <p>Smart Money Intelligence</p>
         </div>
 
         <div class="status">
             <span class="status-dot"></span>
-            <span id="statusText">Connecting...</span>
+            <span id="connection-status">
+                Connected
+            </span>
         </div>
-    </div>
-</header>
+    </header>
 
-<main>
-
-    <!-- OVERVIEW -->
+    <!-- Dashboard statistics -->
 
     <div class="stats">
 
-        <div class="stat">
+        <div class="stat-card">
             <div class="stat-label">
                 Smart Money Signals
             </div>
 
             <div
                 class="stat-value"
-                id="signalCount"
+                id="signal-count"
             >
                 —
             </div>
         </div>
 
-        <div class="stat">
+        <div class="stat-card">
             <div class="stat-label">
                 Strongest Signal
             </div>
 
             <div
                 class="stat-value"
-                id="strongestScore"
+                id="strongest-signal"
             >
                 —
             </div>
         </div>
 
-        <div class="stat">
+        <div class="stat-card">
             <div class="stat-label">
                 Large-Money Volume
             </div>
 
             <div
                 class="stat-value"
-                id="largeMoney"
+                id="large-money-volume"
             >
                 —
             </div>
         </div>
 
-        <div class="stat">
+        <div class="stat-card">
             <div class="stat-label">
-                Markets Monitored
+                Smart Traders
             </div>
 
             <div
                 class="stat-value"
-                id="marketCount"
+                id="trader-count"
             >
                 —
             </div>
@@ -496,127 +519,133 @@
 
     </div>
 
+    <!-- Smart money -->
 
-    <!-- SMART MONEY -->
+    <section class="section">
 
-    <div class="section-header">
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    Smart Money Signals
+                </div>
 
-        <div>
-            <h2 class="section-title">
-                🔥 Smart Money Signals
-            </h2>
-
-            <p class="section-description">
-                Markets with concentrated large-money activity.
-            </p>
+                <div class="section-subtitle">
+                    Large-money activity detected in the last 60 minutes
+                </div>
+            </div>
         </div>
 
-        <button onclick="loadDashboard()">
-            Refresh
-        </button>
-
-    </div>
-
-    <div
-        class="signal-grid"
-        id="signalGrid"
-    >
-        <div class="empty">
-            Loading signals...
-        </div>
-    </div>
-
-
-    <!-- RECENT TRADES -->
-
-    <div class="section-header">
-
-        <div>
-            <h2 class="section-title">
-                🐋 Recent Large Trades
-            </h2>
-
-            <p class="section-description">
-                Individual trades meeting the $500 large-money threshold.
-            </p>
+        <div
+            class="signals"
+            id="signals"
+        >
+            <div class="empty">
+                Loading signals...
+            </div>
         </div>
 
-    </div>
+    </section>
 
-    <div class="table-container">
+    <!-- Top traders -->
 
-        <div class="table-scroll">
+    <section class="section">
+
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    Top Smart Traders
+                </div>
+
+                <div class="section-subtitle">
+                    Public leaderboard intelligence
+                </div>
+            </div>
+        </div>
+
+        <div
+            class="traders"
+            id="traders"
+        >
+            <div class="empty">
+                Loading trader intelligence...
+            </div>
+        </div>
+
+    </section>
+
+    <!-- Large trades -->
+
+    <section class="section">
+
+        <div class="section-header">
+            <div>
+                <div class="section-title">
+                    Recent Large Trades
+                </div>
+
+                <div class="section-subtitle">
+                    Most recent trades captured from the public market feed
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
 
             <table>
 
                 <thead>
                     <tr>
-                        <th>Time</th>
                         <th>Market</th>
                         <th>Side</th>
                         <th>Contracts</th>
                         <th>Price</th>
                         <th>Notional</th>
-                        <th>Type</th>
+                        <th>Time</th>
                     </tr>
                 </thead>
 
-                <tbody id="tradeTable">
-
+                <tbody id="trades">
                     <tr>
                         <td
-                            colspan="7"
+                            colspan="6"
                             class="empty"
                         >
                             Loading trades...
                         </td>
                     </tr>
-
                 </tbody>
 
             </table>
 
         </div>
 
-    </div>
+    </section>
 
+    <footer>
+        KalshiBot • Public market and leaderboard intelligence
+    </footer>
 
-    <div class="footer">
-        KalshiBot v0.1.1 · Large-money activity is not necessarily attributable
-        to a single trader.
-    </div>
-
-</main>
-
+</div>
 
 <script>
 
-const API_BASE = "";
-
+const API = "";
 
 function money(value) {
-
     const number = Number(value || 0);
 
-    return number.toLocaleString(
-        "en-US",
+    return "$" + number.toLocaleString(
+        undefined,
         {
-            style: "currency",
-            currency: "USD",
-            maximumFractionDigits: 0
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
         }
     );
 }
 
-
 function number(value) {
-
-    return Number(value || 0)
-        .toLocaleString("en-US", {
-            maximumFractionDigits: 0
-        });
+    return Number(value || 0).toLocaleString();
 }
-
 
 function timeAgo(timestamp) {
 
@@ -627,7 +656,7 @@ function timeAgo(timestamp) {
     const date = new Date(timestamp);
 
     if (Number.isNaN(date.getTime())) {
-        return timestamp;
+        return "—";
     }
 
     const seconds =
@@ -653,295 +682,12 @@ function timeAgo(timestamp) {
         return `${hours}h ago`;
     }
 
-    return `${Math.floor(hours / 24)}d ago`;
+    return date.toLocaleDateString();
 }
-
-
-function directionClass(direction) {
-
-    if (direction === "YES") {
-        return "yes";
-    }
-
-    if (direction === "NO") {
-        return "no";
-    }
-
-    return "neutral";
-}
-
-
-function renderSignal(signal) {
-
-    const direction =
-        signal.direction || "NEUTRAL";
-
-    const score =
-        Number(signal.score || 0);
-
-    const strength =
-        String(signal.strength || "WATCH")
-            .toLowerCase();
-
-    const pressure =
-        Number(signal.pressure || 0);
-
-    const pressurePercent =
-        Math.round(
-            Math.abs(pressure) * 100
-        );
-
-    let pressureWidth =
-        Math.max(
-            2,
-            pressurePercent / 2
-        );
-
-    const pressureClass =
-        pressure >= 0 ? "yes" : "no";
-
-    return `
-
-        <div class="signal">
-
-            <div class="signal-top">
-
-                <div>
-
-                    <div
-                        class="signal-direction ${directionClass(direction)}"
-                    >
-                        ${strength.toUpperCase()}
-                        ${direction}
-                    </div>
-
-                    <div class="signal-title">
-                        ${escapeHtml(
-                            signal.title || signal.ticker
-                        )}
-                    </div>
-
-                    <div class="ticker">
-                        ${escapeHtml(
-                            signal.ticker || ""
-                        )}
-                    </div>
-
-                </div>
-
-                <div
-                    class="score ${strength}"
-                >
-                    ${score}
-                </div>
-
-            </div>
-
-
-            <div class="signal-data">
-
-                <div class="data-item">
-
-                    <div class="data-label">
-                        Large Money
-                    </div>
-
-                    <div class="data-value">
-                        ${money(
-                            signal.total_dollars
-                        )}
-                    </div>
-
-                </div>
-
-
-                <div class="data-item">
-
-                    <div class="data-label">
-                        Trades
-                    </div>
-
-                    <div class="data-value">
-                        ${number(
-                            signal.total_trades
-                        )}
-                    </div>
-
-                </div>
-
-
-                <div class="data-item">
-
-                    <div class="data-label">
-                        YES
-                    </div>
-
-                    <div class="data-value side-yes">
-                        ${money(
-                            signal.yes_dollars
-                        )}
-                    </div>
-
-                </div>
-
-
-                <div class="data-item">
-
-                    <div class="data-label">
-                        NO
-                    </div>
-
-                    <div class="data-value side-no">
-                        ${money(
-                            signal.no_dollars
-                        )}
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <div class="pressure">
-
-                <div class="pressure-header">
-
-                    <span>
-                        Directional pressure
-                    </span>
-
-                    <span>
-                        ${pressurePercent}% ${direction}
-                    </span>
-
-                </div>
-
-                <div class="pressure-bar">
-
-                    <div
-                        class="pressure-fill ${pressureClass}"
-                        style="width: ${pressureWidth}%"
-                    ></div>
-
-                </div>
-
-            </div>
-
-        </div>
-    `;
-}
-
-
-function renderTrades(trades) {
-
-    const table =
-        document.getElementById(
-            "tradeTable"
-        );
-
-    if (!trades || trades.length === 0) {
-
-        table.innerHTML = `
-            <tr>
-                <td
-                    colspan="7"
-                    class="empty"
-                >
-                    No large trades detected.
-                </td>
-            </tr>
-        `;
-
-        return;
-    }
-
-
-    table.innerHTML =
-        trades.map(trade => {
-
-            const side =
-                String(
-                    trade.side || ""
-                ).toUpperCase();
-
-            const sideClass =
-                side === "YES"
-                    ? "side-yes"
-                    : "side-no";
-
-            const block =
-                trade.is_block_trade
-                    ? `<span class="block">BLOCK</span>`
-                    : "—";
-
-            return `
-
-                <tr>
-
-                    <td>
-                        ${timeAgo(
-                            trade.created_time
-                        )}
-                    </td>
-
-                    <td>
-                        <strong>
-                            ${escapeHtml(
-                                trade.title ||
-                                trade.ticker ||
-                                "Unknown"
-                            )}
-                        </strong>
-                        <br>
-                        <span class="ticker">
-                            ${escapeHtml(
-                                trade.ticker || ""
-                            )}
-                        </span>
-                    </td>
-
-                    <td
-                        class="${sideClass}"
-                    >
-                        ${side}
-                    </td>
-
-                    <td>
-                        ${number(
-                            trade.contracts
-                        )}
-                    </td>
-
-                    <td>
-                        ${(
-                            Number(
-                                trade.price || 0
-                            ) * 100
-                        ).toFixed(1)}¢
-                    </td>
-
-                    <td>
-                        <strong>
-                            ${money(
-                                trade.notional
-                            )}
-                        </strong>
-                    </td>
-
-                    <td>
-                        ${block}
-                    </td>
-
-                </tr>
-            `;
-
-        }).join("");
-}
-
 
 function escapeHtml(value) {
 
-    return String(value)
+    return String(value ?? "")
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
@@ -950,192 +696,583 @@ function escapeHtml(value) {
 }
 
 
-async function getJson(url) {
+/* -------------------------------------------------------
+   SMART MONEY
+------------------------------------------------------- */
 
-    const response =
-        await fetch(url);
-
-    if (!response.ok) {
-        throw new Error(
-            `HTTP ${response.status}`
-        );
-    }
-
-    return await response.json();
-}
-
-
-async function loadDashboard() {
-
-    const status =
-        document.getElementById(
-            "statusText"
-        );
+async function loadSignals() {
 
     try {
 
-        status.textContent =
-            "Updating...";
+        const response = await fetch(
+            `${API}/api/smart-money?window_minutes=60&min_dollars=500&min_trades=2&limit=25`
+        );
 
+        const data =
+            await response.json();
 
-        const [
-            smartMoney,
-            trades,
-            markets
-        ] = await Promise.all([
-
-            getJson(
-                `${API_BASE}/api/smart-money` +
-                `?window_minutes=60` +
-                `&min_dollars=500` +
-                `&min_trades=2` +
-                `&limit=25`
-            ),
-
-            getJson(
-                `${API_BASE}/api/trades?limit=50`
-            ),
-
-            getJson(
-                `${API_BASE}/api/markets?limit=1`
-            )
-
-        ]);
-
-
-        if (!smartMoney.ok) {
+        if (!data.ok) {
             throw new Error(
-                smartMoney.error ||
-                "Smart-money API error"
+                data.error || "Signal API error"
             );
         }
 
-
         const signals =
-            smartMoney.signals || [];
-
-
-        renderSignals(signals);
-
-        renderTrades(
-            prepareTrades(
-                trades
-            )
-        );
-
+            data.signals || [];
 
         document.getElementById(
-            "signalCount"
-        ).textContent =
-            signals.length;
+            "signal-count"
+        ).textContent = signals.length;
 
-
-        document.getElementById(
-            "strongestScore"
-        ).textContent =
+        const strongest =
             signals.length
-                ? signals[0].score
+                ? signals[0]
+                : null;
+
+        document.getElementById(
+            "strongest-signal"
+        ).textContent =
+            strongest
+                ? `${strongest.score} ${strongest.direction}`
                 : "—";
 
-
-        const totalMoney =
+        const volume =
             signals.reduce(
-                (sum, signal) =>
+                (sum, item) =>
                     sum +
                     Number(
-                        signal.total_dollars || 0
+                        item.total_dollars || 0
                     ),
                 0
             );
 
-
         document.getElementById(
-            "largeMoney"
+            "large-money-volume"
         ).textContent =
-            money(totalMoney);
+            money(volume);
 
+        const container =
+            document.getElementById(
+                "signals"
+            );
 
-        document.getElementById(
-            "marketCount"
-        ).textContent =
-            markets.markets
-                ? markets.markets.length
-                : "—";
+        if (!signals.length) {
 
+            container.innerHTML = `
+                <div class="empty">
+                    No smart-money signals detected.
+                </div>
+            `;
 
-        status.textContent =
-            "Connected";
+            return;
+        }
+
+        container.innerHTML =
+            signals.map(signal => {
+
+                const direction =
+                    String(
+                        signal.direction || "NEUTRAL"
+                    ).toLowerCase();
+
+                const pressure =
+                    Number(
+                        signal.pressure || 0
+                    );
+
+                const absolutePressure =
+                    Math.min(
+                        Math.abs(pressure),
+                        1
+                    );
+
+                const pressureWidth =
+                    absolutePressure * 100;
+
+                return `
+                    <div class="signal-card">
+
+                        <div class="signal-top">
+
+                            <div>
+                                <div class="direction ${direction}">
+                                    ${escapeHtml(
+                                        signal.direction || "NEUTRAL"
+                                    )}
+                                </div>
+
+                                <div class="signal-title">
+                                    ${escapeHtml(
+                                        signal.title ||
+                                        signal.ticker
+                                    )}
+                                </div>
+
+                                <div class="section-subtitle">
+                                    ${escapeHtml(
+                                        signal.ticker
+                                    )}
+                                </div>
+                            </div>
+
+                            <div class="score">
+                                ${Number(
+                                    signal.score || 0
+                                )}
+                            </div>
+
+                        </div>
+
+                        <div class="signal-meta">
+
+                            <div class="meta-box">
+                                <div class="meta-label">
+                                    Large Money
+                                </div>
+
+                                <div class="meta-value">
+                                    ${money(
+                                        signal.total_dollars
+                                    )}
+                                </div>
+                            </div>
+
+                            <div class="meta-box">
+                                <div class="meta-label">
+                                    Trades
+                                </div>
+
+                                <div class="meta-value">
+                                    ${number(
+                                        signal.total_trades
+                                    )}
+                                </div>
+                            </div>
+
+                            <div class="meta-box">
+                                <div class="meta-label">
+                                    Strength
+                                </div>
+
+                                <div class="meta-value">
+                                    ${escapeHtml(
+                                        signal.strength
+                                    )}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="pressure">
+
+                            <div class="pressure-label">
+                                <span>
+                                    YES ${money(signal.yes_dollars)}
+                                </span>
+
+                                <span>
+                                    NO ${money(signal.no_dollars)}
+                                </span>
+                            </div>
+
+                            <div class="pressure-track">
+                                <div
+                                    class="pressure-fill ${direction}"
+                                    style="width:${pressureWidth}%"
+                                ></div>
+                            </div>
+
+                        </div>
+
+                    </div>
+                `;
+
+            }).join("");
 
     } catch (error) {
 
-        console.error(error);
-
-        status.textContent =
-            "Connection error";
-
-        document.getElementById(
-            "signalGrid"
-        ).innerHTML = `
-            <div class="empty error">
-                Unable to load dashboard data.
-                <br>
-                ${escapeHtml(
-                    error.message
-                )}
-            </div>
-        `;
-    }
-}
-
-
-function renderSignals(signals) {
-
-    const grid =
-        document.getElementById(
-            "signalGrid"
+        console.error(
+            "Signal error:",
+            error
         );
 
-    if (!signals.length) {
+        document.getElementById(
+            "connection-status"
+        ).textContent =
+            "API error";
+    }
+}
 
-        grid.innerHTML = `
+
+/* -------------------------------------------------------
+   SMART TRADERS
+------------------------------------------------------- */
+
+async function loadTraders() {
+
+    try {
+
+        const response = await fetch(
+            `${API}/api/traders?min_observations=1&limit=8`
+        );
+
+        const data =
+            await response.json();
+
+        if (!data.ok) {
+            throw new Error(
+                data.error || "Trader API error"
+            );
+        }
+
+        const traders =
+            data.traders || [];
+
+        document.getElementById(
+            "trader-count"
+        ).textContent =
+            data.count ?? traders.length;
+
+        const container =
+            document.getElementById(
+                "traders"
+            );
+
+        if (!traders.length) {
+
+            container.innerHTML = `
+                <div class="empty">
+                    No public trader intelligence available.
+                </div>
+            `;
+
+            return;
+        }
+
+        container.innerHTML =
+            traders.map(
+                (trader, index) => {
+
+                    const score =
+                        Number(
+                            trader.score || 0
+                        );
+
+                    let scoreClass =
+                        "score-low";
+
+                    if (score >= 55) {
+                        scoreClass =
+                            "score-high";
+                    } else if (score >= 40) {
+                        scoreClass =
+                            "score-medium";
+                    }
+
+                    const boards =
+                        trader.leaderboards || [];
+
+                    return `
+                        <div class="trader-card">
+
+                            <div class="trader-header">
+
+                                <div class="trader-rank">
+                                    #${index + 1}
+                                </div>
+
+                                <div
+                                    class="trader-name"
+                                    title="${escapeHtml(
+                                        trader.username
+                                    )}"
+                                >
+                                    ${escapeHtml(
+                                        trader.username
+                                    )}
+                                </div>
+
+                                <div
+                                    class="trader-score ${scoreClass}"
+                                >
+                                    ${score}
+                                </div>
+
+                            </div>
+
+                            <div class="trader-bar">
+                                <div
+                                    class="trader-bar-fill"
+                                    style="width:${Math.min(
+                                        score,
+                                        100
+                                    )}%"
+                                ></div>
+                            </div>
+
+                            <div class="trader-details">
+
+                                <div class="trader-stat">
+                                    <div class="trader-stat-label">
+                                        Profit Rank
+                                    </div>
+
+                                    <div class="trader-stat-value">
+                                        ${
+                                            trader.best_profit_rank
+                                                ? "#" +
+                                                  trader.best_profit_rank
+                                                : "—"
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="trader-stat">
+                                    <div class="trader-stat-label">
+                                        Volume Rank
+                                    </div>
+
+                                    <div class="trader-stat-value">
+                                        ${
+                                            trader.best_volume_rank
+                                                ? "#" +
+                                                  trader.best_volume_rank
+                                                : "—"
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="trader-stat">
+                                    <div class="trader-stat-label">
+                                        Predictions
+                                    </div>
+
+                                    <div class="trader-stat-value">
+                                        ${
+                                            trader.best_prediction_rank
+                                                ? "#" +
+                                                  trader.best_prediction_rank
+                                                : "—"
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="trader-stat">
+                                    <div class="trader-stat-label">
+                                        Observations
+                                    </div>
+
+                                    <div class="trader-stat-value">
+                                        ${number(
+                                            trader.observations
+                                        )}
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div class="chips">
+
+                                ${
+                                    boards.length
+                                        ? boards.map(
+                                            board => `
+                                                <span class="chip">
+                                                    ${escapeHtml(
+                                                        board
+                                                    )}
+                                                </span>
+                                            `
+                                        ).join("")
+                                        : `
+                                            <span class="chip">
+                                                public
+                                            </span>
+                                        `
+                                }
+
+                            </div>
+
+                        </div>
+                    `;
+
+                }
+            ).join("");
+
+    } catch (error) {
+
+        console.error(
+            "Trader error:",
+            error
+        );
+
+        document.getElementById(
+            "traders"
+        ).innerHTML = `
             <div class="empty">
-                No qualifying smart-money signals
-                in the current window.
+                Unable to load trader intelligence.
             </div>
         `;
-
-        return;
     }
-
-
-    grid.innerHTML =
-        signals
-            .map(renderSignal)
-            .join("");
 }
 
 
-function prepareTrades(response) {
+/* -------------------------------------------------------
+   RECENT TRADES
+------------------------------------------------------- */
 
-    if (!response) {
-        return [];
+async function loadTrades() {
+
+    try {
+
+        const response = await fetch(
+            `${API}/api/trades?limit=50`
+        );
+
+        const data =
+            await response.json();
+
+        const trades =
+            data.trades || [];
+
+        const tbody =
+            document.getElementById(
+                "trades"
+            );
+
+        if (!trades.length) {
+
+            tbody.innerHTML = `
+                <tr>
+                    <td
+                        colspan="6"
+                        class="empty"
+                    >
+                        No trades available.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+        tbody.innerHTML =
+            trades.map(trade => {
+
+                const side =
+                    String(
+                        trade.side || ""
+                    ).toLowerCase();
+
+                const price =
+                    side === "yes"
+                        ? trade.yes_price
+                        : trade.no_price;
+
+                const contracts =
+                    Number(
+                        trade.count || 0
+                    );
+
+                const notional =
+                    contracts *
+                    Number(price || 0);
+
+                return `
+                    <tr>
+
+                        <td>
+                            ${escapeHtml(
+                                trade.ticker
+                            )}
+                        </td>
+
+                        <td
+                            class="${
+                                side === "yes"
+                                    ? "side-yes"
+                                    : "side-no"
+                            }"
+                        >
+                            ${escapeHtml(
+                                side.toUpperCase()
+                            )}
+                        </td>
+
+                        <td>
+                            ${number(
+                                contracts
+                            )}
+                        </td>
+
+                        <td>
+                            ${Number(
+                                price || 0
+                            ).toFixed(2)}¢
+                        </td>
+
+                        <td>
+                            ${money(
+                                notional
+                            )}
+                        </td>
+
+                        <td>
+                            ${timeAgo(
+                                trade.created_time
+                            )}
+                        </td>
+
+                    </tr>
+                `;
+
+            }).join("");
+
+    } catch (error) {
+
+        console.error(
+            "Trade error:",
+            error
+        );
+
+        document.getElementById(
+            "trades"
+        ).innerHTML = `
+            <tr>
+                <td
+                    colspan="6"
+                    class="empty"
+                >
+                    Unable to load trades.
+                </td>
+            </tr>
+        `;
     }
-
-    if (Array.isArray(response)) {
-        return response;
-    }
-
-    return response.trades || [];
 }
 
 
-loadDashboard();
+/* -------------------------------------------------------
+   REFRESH
+------------------------------------------------------- */
 
+async function refreshDashboard() {
 
-// Refresh every 30 seconds.
+    await Promise.all([
+        loadSignals(),
+        loadTraders(),
+        loadTrades()
+    ]);
+
+    document.getElementById(
+        "connection-status"
+    ).textContent =
+        "Connected";
+}
+
+refreshDashboard();
 
 setInterval(
-    loadDashboard,
+    refreshDashboard,
     30000
 );
 
