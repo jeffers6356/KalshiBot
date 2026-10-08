@@ -1,7 +1,9 @@
+import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .db import connect
 from .trader_intel import save_public_leaderboard
 
 
@@ -41,6 +43,125 @@ def load_entries():
     )
 
 
+def normalize_entry(entry):
+    return {
+        "username": str(
+            entry.get("username") or ""
+        ).strip(),
+
+        "leaderboard": str(
+            entry.get("leaderboard") or ""
+        ).strip().lower(),
+
+        "timeframe": str(
+            entry.get("timeframe") or "week"
+        ).strip().lower(),
+
+        "category": str(
+            entry.get("category") or ""
+        ).strip(),
+
+        "rank": int(
+            entry.get("rank") or 0
+        ),
+
+        "value": float(
+            entry.get("value") or 0
+        ),
+    }
+
+
+def snapshot_hash(entries):
+    normalized = []
+
+    for entry in entries:
+        normalized.append(
+            normalize_entry(entry)
+        )
+
+    normalized.sort(
+        key=lambda item: (
+            item["username"],
+            item["leaderboard"],
+            item["timeframe"],
+            item["category"],
+            item["rank"],
+            item["value"],
+        )
+    )
+
+    payload = json.dumps(
+        normalized,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return hashlib.sha256(
+        payload.encode("utf-8")
+    ).hexdigest()
+
+
+def find_existing_snapshot(entries):
+    conn = connect()
+
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                username,
+                leaderboard,
+                timeframe,
+                category,
+                rank,
+                value,
+                observed_at
+            FROM leaderboard_snapshots
+            ORDER BY observed_at
+            """
+        ).fetchall()
+    finally:
+        conn.close()
+
+    snapshots = {}
+
+    for row in rows:
+        key = (
+            row["observed_at"],
+            row["timeframe"],
+        )
+
+        snapshots.setdefault(
+            key,
+            [],
+        )
+
+        snapshots[key].append(
+            {
+                "username": row["username"],
+                "leaderboard": row["leaderboard"],
+                "timeframe": row["timeframe"],
+                "category": row["category"],
+                "rank": row["rank"],
+                "value": row["value"],
+            }
+        )
+
+    incoming_hash = snapshot_hash(entries)
+
+    for (
+        observed_at,
+        timeframe,
+    ), snapshot_entries in snapshots.items():
+
+        if snapshot_hash(
+            snapshot_entries
+        ) == incoming_hash:
+
+            return observed_at
+
+    return None
+
+
 def main():
     print("Loading leaderboard data from:")
     print(DATA_FILE)
@@ -56,14 +177,6 @@ def main():
         print("No leaderboard entries found.")
         return
 
-    # One timestamp for the entire import.
-    #
-    # This timestamp represents one independent
-    # leaderboard observation.
-    snapshot_time = datetime.now(
-        timezone.utc
-    ).isoformat()
-
     prepared = []
 
     for entry in entries:
@@ -71,18 +184,12 @@ def main():
         if not isinstance(entry, dict):
             continue
 
-        username = str(
-            entry.get("username") or ""
-        ).strip()
+        normalized = normalize_entry(entry)
 
-        leaderboard = str(
-            entry.get("leaderboard") or ""
-        ).strip().lower()
-
-        if not username:
+        if not normalized["username"]:
             continue
 
-        if leaderboard not in {
+        if normalized["leaderboard"] not in {
             "profit",
             "volume",
             "predictions",
@@ -90,23 +197,7 @@ def main():
             continue
 
         prepared.append(
-            {
-                "username": username,
-                "leaderboard": leaderboard,
-                "timeframe": str(
-                    entry.get("timeframe")
-                    or "week"
-                ).lower(),
-                "category": str(
-                    entry.get("category")
-                    or ""
-                ),
-                "rank": entry.get("rank"),
-                "value": float(
-                    entry.get("value") or 0
-                ),
-                "observed_at": snapshot_time,
-            }
+            normalized
         )
 
     print(
@@ -118,6 +209,33 @@ def main():
             "No valid leaderboard entries found."
         )
         return
+
+    existing_snapshot = find_existing_snapshot(
+        prepared
+    )
+
+    if existing_snapshot:
+        print()
+        print(
+            "This leaderboard data already exists "
+            "as a recorded snapshot."
+        )
+        print(
+            f"Existing snapshot: {existing_snapshot}"
+        )
+        print()
+        print(
+            "No new snapshot created."
+        )
+        return
+
+    # One timestamp for the entire import.
+    snapshot_time = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    for entry in prepared:
+        entry["observed_at"] = snapshot_time
 
     saved = save_public_leaderboard(
         prepared
