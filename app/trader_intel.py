@@ -14,9 +14,9 @@ def _rank_score(rank: int | None) -> float:
     """
     Convert leaderboard rank into a 0-100 score.
 
-    Rank 1 = 100.
-    Rank 2 = 97.
-    Rank 10 = 73.
+    Rank 1 = 100
+    Rank 2 = 97
+    Rank 10 = 73
     """
 
     if rank is None or rank <= 0:
@@ -35,14 +35,69 @@ def _average(values: List[float]) -> float:
     return sum(values) / len(values)
 
 
-def _calculate_snapshot_score(
-    profit_score: float,
-    volume_score: float,
-    prediction_score: float,
-    leaderboard_count: int,
-) -> float:
+def _snapshot_score(
+    entries: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """
+    Calculate a trader's score for one leaderboard snapshot.
+    """
 
-    score = (
+    profit_score = 0.0
+    volume_score = 0.0
+    prediction_score = 0.0
+
+    profit_value = 0.0
+    volume_value = 0.0
+    prediction_value = 0.0
+
+    best_profit_rank = None
+    best_volume_rank = None
+    best_prediction_rank = None
+
+    leaderboards = set()
+
+    for entry in entries:
+
+        leaderboard = str(
+            entry.get("leaderboard") or ""
+        ).lower()
+
+        rank = entry.get("rank")
+        value = float(
+            entry.get("value") or 0
+        )
+
+        if leaderboard == "profit":
+
+            leaderboards.add("profit")
+
+            profit_score = _rank_score(rank)
+
+            profit_value = value
+
+            best_profit_rank = rank
+
+        elif leaderboard == "volume":
+
+            leaderboards.add("volume")
+
+            volume_score = _rank_score(rank)
+
+            volume_value = value
+
+            best_volume_rank = rank
+
+        elif leaderboard == "predictions":
+
+            leaderboards.add("predictions")
+
+            prediction_score = _rank_score(rank)
+
+            prediction_value = value
+
+            best_prediction_rank = rank
+
+    weighted_score = (
         profit_score
         * LEADERBOARD_WEIGHTS["profit"]
         + volume_score
@@ -53,26 +108,80 @@ def _calculate_snapshot_score(
 
     breadth_bonus = min(
         10.0,
-        leaderboard_count * 3.33,
+        len(leaderboards) * 3.33,
     )
 
-    return min(
+    score = min(
         100.0,
-        score + breadth_bonus,
+        weighted_score + breadth_bonus,
     )
+
+    return {
+        "score": score,
+        "profit_score": profit_score,
+        "volume_score": volume_score,
+        "prediction_score": prediction_score,
+        "profit_value": profit_value,
+        "volume_value": volume_value,
+        "prediction_value": prediction_value,
+        "best_profit_rank": best_profit_rank,
+        "best_volume_rank": best_volume_rank,
+        "best_prediction_rank": best_prediction_rank,
+        "leaderboards": leaderboards,
+    }
+
+
+def _consistency_label(
+    snapshot_scores: List[float],
+) -> str:
+    """
+    Determine consistency from independent snapshots.
+    """
+
+    count = len(snapshot_scores)
+
+    if count < 2:
+        return "NEW"
+
+    average = _average(snapshot_scores)
+
+    if average <= 0:
+        return "NEW"
+
+    variance = _average(
+        [
+            abs(score - average)
+            for score in snapshot_scores
+        ]
+    )
+
+    if count >= 5 and variance <= 8:
+        return "HIGH"
+
+    if count >= 3 and variance <= 15:
+        return "MEDIUM"
+
+    return "LOW"
 
 
 def _trend_label(
     current_score: float,
-    historical_average: float,
+    previous_scores: List[float],
 ) -> str:
+    """
+    Compare the current score with previous snapshots.
+    """
 
-    if historical_average <= 0:
+    if not previous_scores:
         return "NEW"
+
+    previous_average = _average(
+        previous_scores
+    )
 
     difference = (
         current_score -
-        historical_average
+        previous_average
     )
 
     if difference >= 8:
@@ -84,50 +193,22 @@ def _trend_label(
     return "STABLE"
 
 
-def _consistency_label(
-    snapshot_count: int,
-    score_values: List[float],
-) -> str:
-
-    if snapshot_count < 2:
-        return "NEW"
-
-    if not score_values:
-        return "NEW"
-
-    average = _average(score_values)
-
-    if average <= 0:
-        return "NEW"
-
-    variance = _average(
-        [
-            abs(score - average)
-            for score in score_values
-        ]
-    )
-
-    if snapshot_count >= 5 and variance <= 8:
-        return "HIGH"
-
-    if snapshot_count >= 3 and variance <= 15:
-        return "MEDIUM"
-
-    return "LOW"
-
-
 def trader_intelligence(
     min_observations: int = 1,
     limit: int = 50,
 ) -> List[Dict[str, Any]]:
     """
-    Build trader intelligence from public leaderboard
-    observations.
+    Build trader intelligence from public leaderboard data.
 
-    Historical consistency is only calculated when
-    multiple distinct snapshots exist.
+    Each unique observed_at timestamp represents one
+    leaderboard snapshot.
 
-    This function does not infer private trading activity.
+    Profit, volume, and prediction entries occurring at
+    the same timestamp are treated as part of the same
+    snapshot.
+
+    Historical statistics are only calculated when
+    multiple independent snapshots exist.
     """
 
     min_observations = max(
@@ -143,6 +224,7 @@ def trader_intelligence(
     conn = connect()
 
     try:
+
         rows = conn.execute(
             """
             SELECT
@@ -157,223 +239,248 @@ def trader_intelligence(
             ORDER BY observed_at ASC
             """
         ).fetchall()
+
     finally:
         conn.close()
 
-    traders: Dict[str, Dict[str, Any]] = {}
+    # --------------------------------------------------
+    # Group database rows into:
+    #
+    # trader -> timestamp -> leaderboard entries
+    # --------------------------------------------------
+
+    trader_snapshots: Dict[
+        str,
+        Dict[str, List[Dict[str, Any]]]
+    ] = {}
 
     for row in rows:
 
         username = row["username"]
 
-        if username not in traders:
-            traders[username] = {
-                "username": username,
-                "observations": 0,
-                "leaderboards": set(),
-                "first_seen": row["observed_at"],
-                "last_seen": row["observed_at"],
-                "profit_scores": [],
-                "volume_scores": [],
-                "prediction_scores": [],
-                "snapshot_scores": [],
-                "profit_value": 0.0,
-                "volume_value": 0.0,
-                "prediction_value": 0.0,
-                "best_profit_rank": None,
-                "best_volume_rank": None,
-                "best_prediction_rank": None,
-            }
-
-        trader = traders[username]
-
-        leaderboard = str(
-            row["leaderboard"] or ""
-        ).lower()
-
-        rank = row["rank"]
-
-        value = float(
-            row["value"] or 0
-        )
-
-        trader["observations"] += 1
-
-        trader["leaderboards"].add(
-            leaderboard
-        )
-
-        trader["last_seen"] = (
+        observed_at = (
             row["observed_at"]
+            or ""
         )
 
-        if leaderboard == "profit":
+        if username not in trader_snapshots:
+            trader_snapshots[username] = {}
 
-            trader["profit_scores"].append(
-                _rank_score(rank)
-            )
+        if observed_at not in trader_snapshots[username]:
+            trader_snapshots[
+                username
+            ][observed_at] = []
 
-            trader["profit_value"] = max(
-                trader["profit_value"],
-                value,
-            )
+        trader_snapshots[
+            username
+        ][observed_at].append(
+            {
+                "leaderboard":
+                    row["leaderboard"],
 
-            if (
-                trader["best_profit_rank"] is None
-                or (
-                    rank is not None
-                    and rank <
-                    trader["best_profit_rank"]
-                )
-            ):
-                trader["best_profit_rank"] = rank
+                "timeframe":
+                    row["timeframe"],
 
-        elif leaderboard == "volume":
+                "category":
+                    row["category"],
 
-            trader["volume_scores"].append(
-                _rank_score(rank)
-            )
+                "rank":
+                    row["rank"],
 
-            trader["volume_value"] = max(
-                trader["volume_value"],
-                value,
-            )
+                "value":
+                    row["value"],
 
-            if (
-                trader["best_volume_rank"] is None
-                or (
-                    rank is not None
-                    and rank <
-                    trader["best_volume_rank"]
-                )
-            ):
-                trader["best_volume_rank"] = rank
-
-        elif leaderboard == "predictions":
-
-            trader["prediction_scores"].append(
-                _rank_score(rank)
-            )
-
-            trader["prediction_value"] = max(
-                trader["prediction_value"],
-                value,
-            )
-
-            if (
-                trader["best_prediction_rank"] is None
-                or (
-                    rank is not None
-                    and rank <
-                    trader["best_prediction_rank"]
-                )
-            ):
-                trader["best_prediction_rank"] = rank
+                "observed_at":
+                    observed_at,
+            }
+        )
 
     results: List[Dict[str, Any]] = []
 
-    for trader in traders.values():
+    for username, snapshots in trader_snapshots.items():
 
-        if trader["observations"] < min_observations:
+        total_observations = sum(
+            len(entries)
+            for entries in snapshots.values()
+        )
+
+        if total_observations < min_observations:
             continue
 
-        profit_score = _average(
-            trader["profit_scores"]
+        # Sort snapshots chronologically.
+        ordered_snapshots = sorted(
+            snapshots.items(),
+            key=lambda item: item[0],
         )
 
-        volume_score = _average(
-            trader["volume_scores"]
-        )
+        calculated_snapshots = []
 
-        prediction_score = _average(
-            trader["prediction_scores"]
-        )
+        for observed_at, entries in ordered_snapshots:
 
-        current_score = _calculate_snapshot_score(
-            profit_score,
-            volume_score,
-            prediction_score,
-            len(trader["leaderboards"]),
-        )
+            snapshot = _snapshot_score(
+                entries
+            )
 
-        #We currently have leaderboard observations rather
-        #than explicitly grouped snapshots.
+            calculated_snapshots.append(
+                {
+                    "observed_at":
+                        observed_at,
 
-        #Until multiple collection timestamps exist,
-        #historical statistics remain NEW.
-       
+                    **snapshot,
+                }
+            )
 
-        snapshot_scores = trader[
-            "snapshot_scores"
+        if not calculated_snapshots:
+            continue
+
+        # Latest snapshot is the current state.
+        current = calculated_snapshots[-1]
+
+        # Everything before the latest snapshot
+        # represents actual historical data.
+        previous = calculated_snapshots[:-1]
+
+        current_score = current["score"]
+
+        historical_scores = [
+            snapshot["score"]
+            for snapshot in calculated_snapshots
+        ]
+
+        previous_scores = [
+            snapshot["score"]
+            for snapshot in previous
         ]
 
         historical_average = (
-            _average(snapshot_scores)
-            if snapshot_scores
+            _average(previous_scores)
+            if previous_scores
             else 0.0
         )
 
         consistency = _consistency_label(
-            len(snapshot_scores),
-            snapshot_scores,
+            historical_scores
         )
 
         trend = _trend_label(
             current_score,
-            historical_average,
+            previous_scores,
         )
+
+        # Determine all leaderboard types the trader
+        # has appeared on.
+        all_leaderboards = set()
+
+        for snapshot in calculated_snapshots:
+            all_leaderboards.update(
+                snapshot["leaderboards"]
+            )
+
+        # Best ranks ever observed.
+        best_profit_rank = None
+        best_volume_rank = None
+        best_prediction_rank = None
+
+        for snapshot in calculated_snapshots:
+
+            rank = snapshot[
+                "best_profit_rank"
+            ]
+
+            if rank is not None:
+                if (
+                    best_profit_rank is None
+                    or rank < best_profit_rank
+                ):
+                    best_profit_rank = rank
+
+            rank = snapshot[
+                "best_volume_rank"
+            ]
+
+            if rank is not None:
+                if (
+                    best_volume_rank is None
+                    or rank < best_volume_rank
+                ):
+                    best_volume_rank = rank
+
+            rank = snapshot[
+                "best_prediction_rank"
+            ]
+
+            if rank is not None:
+                if (
+                    best_prediction_rank is None
+                    or rank < best_prediction_rank
+                ):
+                    best_prediction_rank = rank
 
         results.append(
             {
                 "username":
-                    trader["username"],
+                    username,
 
                 "score":
                     round(current_score),
 
                 "profit_score":
-                    round(profit_score),
+                    round(
+                        current[
+                            "profit_score"
+                        ]
+                    ),
 
                 "volume_score":
-                    round(volume_score),
+                    round(
+                        current[
+                            "volume_score"
+                        ]
+                    ),
 
                 "prediction_score":
-                    round(prediction_score),
+                    round(
+                        current[
+                            "prediction_score"
+                        ]
+                    ),
 
                 "observations":
-                    trader["observations"],
+                    total_observations,
 
                 "leaderboards":
                     sorted(
-                        trader["leaderboards"]
+                        all_leaderboards
                     ),
 
                 "best_profit_rank":
-                    trader["best_profit_rank"],
+                    best_profit_rank,
 
                 "best_volume_rank":
-                    trader["best_volume_rank"],
+                    best_volume_rank,
 
                 "best_prediction_rank":
-                    trader[
-                        "best_prediction_rank"
-                    ],
+                    best_prediction_rank,
 
                 "profit_value":
                     round(
-                        trader["profit_value"],
+                        current[
+                            "profit_value"
+                        ],
                         2,
                     ),
 
                 "volume_value":
                     round(
-                        trader["volume_value"],
+                        current[
+                            "volume_value"
+                        ],
                         2,
                     ),
 
                 "prediction_value":
                     round(
-                        trader[
+                        current[
                             "prediction_value"
                         ],
                         2,
@@ -391,21 +498,27 @@ def trader_intelligence(
                     trend,
 
                 "snapshot_count":
-                    len(snapshot_scores),
+                    len(
+                        calculated_snapshots
+                    ),
 
                 "first_seen":
-                    trader["first_seen"],
+                    calculated_snapshots[
+                        0
+                    ]["observed_at"],
 
                 "last_seen":
-                    trader["last_seen"],
+                    current[
+                        "observed_at"
+                    ],
             }
         )
 
     results.sort(
         key=lambda item: (
             item["score"],
-            item["profit_score"],
-            item["observations"],
+            item["historical_average"],
+            item["snapshot_count"],
         ),
         reverse=True,
     )
