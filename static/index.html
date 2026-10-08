@@ -440,6 +440,52 @@
                 display: none;
             }
         }
+
+        .history-section {
+                margin-top: 14px;
+                padding-top: 12px;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+            
+            .history-title {
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 0.12em;
+                color: #7f8a9a;
+                margin-bottom: 8px;
+            }
+            
+            .history-values {
+                display: flex;
+                align-items: flex-end;
+                gap: 8px;
+                overflow-x: auto;
+                padding-bottom: 2px;
+            }
+            
+            .history-point {
+                min-width: 52px;
+                text-align: center;
+            }
+            
+            .history-score {
+                display: block;
+                font-size: 13px;
+                font-weight: 700;
+            }
+            
+            .history-date {
+                display: block;
+                margin-top: 3px;
+                font-size: 9px;
+                color: #7f8a9a;
+            }
+            
+            .history-empty {
+                margin-top: 12px;
+                font-size: 11px;
+                color: #687386;
+            }
     </style>
 </head>
 
@@ -1153,6 +1199,13 @@ async function loadTraders() {
                                 </div>
 
                             </div>
+
+                            ${historyHtml}
+                            
+                            <div class="trader-chips">
+                                <span class="chip">${consistency} CONSISTENCY</span>
+                                <span class="chip">${trend}${trendSymbol}</span>
+                                <span class="chip">${confidence} CONFIDENCE</span>
 
                             <div class="chips">
 
