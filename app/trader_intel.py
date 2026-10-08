@@ -533,6 +533,9 @@ def trader_intelligence(
 
                 "last_seen":
                     ordered_snapshots[-1][0],
+
+                "history":
+                    history,
             }
         )
 
