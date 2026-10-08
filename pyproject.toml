@@ -5,10 +5,6 @@ description = "Kalshi Smart Money Intelligence"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi",
-]
-
-[dependency-groups]
-dev = [
     "workers-py",
     "workers-runtime-sdk",
 ]
