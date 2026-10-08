@@ -266,6 +266,25 @@ def _trend_label(
 
     return "STABLE"
 
+def _score_band(score: float) -> str:
+    """
+    Translate the numerical Smart Trader score
+    into a human-readable strength category.
+    """
+
+    if score >= 90:
+        return "ELITE"
+
+    if score >= 75:
+        return "STRONG"
+
+    if score >= 60:
+        return "INTERESTING"
+
+    if score >= 40:
+        return "WATCH"
+
+    return "WEAK"
 
 def _confidence_label(
     snapshot_count: int,
