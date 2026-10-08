@@ -365,6 +365,58 @@ async def smart_money(
             "error": str(exc),
             "signals": [],
         }
+        
+@app.get("/api/traders")
+async def traders(
+    min_observations: int = 1,
+    limit: int = 25,
+):
+    from .trader_intel import top_traders
+
+    try:
+        data = top_traders(
+            min_observations=min_observations,
+            limit=limit,
+        )
+
+        return {
+            "ok": True,
+            "traders": data,
+            "count": len(data),
+        }
+
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": str(exc),
+            "traders": [],
+            "count": 0,
+        }
+
+
+@app.get("/api/traders/{username}")
+async def trader(username: str):
+    from .trader_intel import trader_detail
+
+    try:
+        data = trader_detail(username)
+
+        if data is None:
+            return {
+                "ok": False,
+                "error": "Trader not found",
+            }
+
+        return {
+            "ok": True,
+            **data,
+        }
+
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": str(exc),
+        }
 
 @app.get("/api/signals")
 async def signals(
