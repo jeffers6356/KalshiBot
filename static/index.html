@@ -913,7 +913,7 @@ async function loadTraders() {
     try {
 
         const response = await fetch(
-            `${API}/api/traders?min_observations=1&limit=8`
+            `${API}/api/traders?min_observations=1&limit=25`
         );
 
         const data =
@@ -927,6 +927,9 @@ async function loadTraders() {
 
         const traders =
             data.traders || [];
+
+        const topTraders =
+            traders.slice(0, 8);
 
         document.getElementById(
             "trader-count"
