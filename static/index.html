@@ -455,30 +455,66 @@
                 margin-bottom: 8px;
             }
             
-            .history-values {
-                display: flex;
-                align-items: flex-end;
-                gap: 8px;
-                overflow-x: auto;
-                padding-bottom: 2px;
+            .history-chart {
+                position: relative;
+                width: 100%;
+                height: 92px;
+                overflow: hidden;
             }
             
-            .history-point {
-                min-width: 52px;
+            .history-svg {
+                width: 100%;
+                height: 72px;
+                display: block;
+                overflow: visible;
+            }
+            
+            .history-baseline {
+                stroke: rgba(255, 255, 255, 0.08);
+                stroke-width: 1;
+            }
+            
+            .history-line {
+                fill: none;
+                stroke: #5f87ff;
+                stroke-width: 2.5;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+            }
+            
+            .history-dot {
+                fill: #5f87ff;
+                stroke: #111821;
+                stroke-width: 2;
+            }
+            
+            .history-labels {
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                height: 24px;
+            }
+            
+            .history-label {
+                position: absolute;
+                transform: translateX(-50%);
                 text-align: center;
+                white-space: nowrap;
             }
             
-            .history-score {
+            .history-label span {
                 display: block;
-                font-size: 13px;
+                font-size: 10px;
                 font-weight: 700;
+                color: #e8edf5;
             }
             
-            .history-date {
+            .history-label small {
                 display: block;
-                margin-top: 3px;
-                font-size: 9px;
-                color: #7f8a9a;
+                margin-top: 2px;
+                font-size: 8px;
+                color: #687386;
             }
             
             .history-empty {
@@ -1271,6 +1307,169 @@ function formatHistoryDate(value) {
             day: "numeric"
         }
     );
+}
+
+function buildHistoryChart(history) {
+    if (!Array.isArray(history) || history.length === 0) {
+        return "";
+    }
+
+    const width = 300;
+    const height = 72;
+    const paddingX = 8;
+    const paddingY = 10;
+
+    const scores = history.map(point =>
+        Number(point.score || 0)
+    );
+
+    const minScore = Math.min(...scores);
+    const maxScore = Math.max(...scores);
+
+    /*
+     * Give the chart some breathing room.
+     * This is especially important when scores are
+     * very close together.
+     */
+    const range = Math.max(
+        maxScore - minScore,
+        10
+    );
+
+    const chartMin = Math.max(
+        0,
+        minScore - range * 0.15
+    );
+
+    const chartMax = Math.min(
+        100,
+        maxScore + range * 0.15
+    );
+
+    const chartRange = Math.max(
+        chartMax - chartMin,
+        1
+    );
+
+    const points = history.map(
+        (point, index) => {
+
+            const x =
+                history.length === 1
+                    ? width / 2
+                    : paddingX +
+                      (
+                          index /
+                          (history.length - 1)
+                      ) *
+                      (
+                          width -
+                          paddingX * 2
+                      );
+
+            const y =
+                height -
+                paddingY -
+                (
+                    (
+                        Number(point.score || 0)
+                        - chartMin
+                    ) /
+                    chartRange
+                ) *
+                (
+                    height -
+                    paddingY * 2
+                );
+
+            return {
+                x,
+                y,
+                score: Number(
+                    point.score || 0
+                ),
+                date:
+                    formatHistoryDate(
+                        point.observed_at
+                    )
+            };
+        }
+    );
+
+    const polylinePoints = points
+        .map(point =>
+            `${point.x},${point.y}`
+        )
+        .join(" ");
+
+    const circles = points
+        .map(point => `
+            <circle
+                cx="${point.x}"
+                cy="${point.y}"
+                r="3.5"
+                class="history-dot"
+            >
+                <title>
+                    ${point.score.toFixed(2)}
+                    — ${point.date}
+                </title>
+            </circle>
+        `)
+        .join("");
+
+    const labels = points
+        .map(point => `
+            <div
+                class="history-label"
+                style="left:${(point.x / width) * 100}%"
+            >
+                <span>
+                    ${point.score.toFixed(2)}
+                </span>
+                <small>
+                    ${escapeHtml(point.date)}
+                </small>
+            </div>
+        `)
+        .join("");
+
+    return `
+        <div class="history-chart">
+
+            <svg
+                viewBox="0 0 ${width} ${height}"
+                preserveAspectRatio="none"
+                class="history-svg"
+            >
+                <line
+                    x1="0"
+                    y1="${height - paddingY}"
+                    x2="${width}"
+                    y2="${height - paddingY}"
+                    class="history-baseline"
+                />
+
+                ${
+                    history.length > 1
+                        ? `
+                            <polyline
+                                points="${polylinePoints}"
+                                class="history-line"
+                            />
+                        `
+                        : ""
+                }
+
+                ${circles}
+            </svg>
+
+            <div class="history-labels">
+                ${labels}
+            </div>
+
+        </div>
+    `;
 }
 
 
