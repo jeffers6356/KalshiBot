@@ -1,10 +1,9 @@
 import hashlib
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .db import connect
+from .db import D1Database
 from .trader_intel import save_public_leaderboard
 
 
@@ -146,30 +145,25 @@ def snapshot_signature(entries):
 # Find duplicate snapshot
 # ---------------------------------------------------------
 
-def find_existing_snapshot(entries):
+async def find_existing_snapshot(
+    db: D1Database,
+    entries,
+):
 
-    conn = connect()
-
-    try:
-
-        rows = conn.execute(
-            """
-            SELECT
-                username,
-                leaderboard,
-                timeframe,
-                category,
-                rank,
-                value,
-                observed_at
-            FROM leaderboard_snapshots
-            ORDER BY observed_at
-            """
-        ).fetchall()
-
-    finally:
-
-        conn.close()
+    rows = await db.all(
+        """
+        SELECT
+            username,
+            leaderboard,
+            timeframe,
+            category,
+            rank,
+            value,
+            observed_at
+        FROM leaderboard_snapshots
+        ORDER BY observed_at
+        """
+    )
 
     snapshots = {}
 
@@ -296,26 +290,13 @@ def archive_snapshot(
 
 
 # ---------------------------------------------------------
-# Main import process
+# Import leaderboard into D1
 # ---------------------------------------------------------
 
-def main():
-
-    if len(sys.argv) > 1:
-
-        data_file = Path(
-            sys.argv[1]
-        )
-
-        if not data_file.is_absolute():
-            data_file = (
-                PROJECT_ROOT
-                / data_file
-            )
-
-    else:
-
-        data_file = DEFAULT_DATA_FILE
+async def import_leaderboard(
+    db: D1Database,
+    data_file=DEFAULT_DATA_FILE,
+):
 
     print(
         "Loading leaderboard data from:"
@@ -339,7 +320,11 @@ def main():
             "No leaderboard entries found."
         )
 
-        return
+        return {
+            "saved": 0,
+            "duplicate": False,
+            "snapshot_time": None,
+        }
 
     prepared = []
 
@@ -385,15 +370,20 @@ def main():
             "No valid leaderboard entries found."
         )
 
-        return
+        return {
+            "saved": 0,
+            "duplicate": False,
+            "snapshot_time": None,
+        }
 
     # -----------------------------------------------------
     # Duplicate protection
     # -----------------------------------------------------
 
     existing_snapshot = (
-        find_existing_snapshot(
-            prepared
+        await find_existing_snapshot(
+            db,
+            prepared,
         )
     )
 
@@ -417,7 +407,12 @@ def main():
             "No new snapshot created."
         )
 
-        return
+        return {
+            "saved": 0,
+            "duplicate": True,
+            "snapshot_time":
+                existing_snapshot,
+        }
 
     # -----------------------------------------------------
     # New snapshot
@@ -436,21 +431,12 @@ def main():
         ] = snapshot_time
 
     # -----------------------------------------------------
-    # Save to database
+    # Save to D1
     # -----------------------------------------------------
 
-    saved = save_public_leaderboard(
-        prepared
-    )
-
-    # -----------------------------------------------------
-    # Archive the exact imported snapshot
-    # -----------------------------------------------------
-
-    archive_file = archive_snapshot(
+    saved = await save_public_leaderboard(
+        db,
         prepared,
-        snapshot_time,
-        data_file,
     )
 
     print()
@@ -467,6 +453,16 @@ def main():
 
     print(
         snapshot_time
+    )
+
+    # -----------------------------------------------------
+    # Archive exact imported snapshot
+    # -----------------------------------------------------
+
+    archive_file = archive_snapshot(
+        prepared,
+        snapshot_time,
+        data_file,
     )
 
     print()
@@ -486,6 +482,11 @@ def main():
         "imported successfully."
     )
 
-
-if __name__ == "__main__":
-    main()
+    return {
+        "saved": saved,
+        "duplicate": False,
+        "snapshot_time": snapshot_time,
+        "archive_file": str(
+            archive_file
+        ),
+    }
