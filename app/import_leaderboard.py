@@ -1,66 +1,82 @@
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .trader_intel import save_public_leaderboard
 
 
-DEFAULT_FILE = (
+DATA_FILE = (
     Path(__file__).resolve().parent.parent
     / "data"
     / "public_leaderboard.json"
 )
 
 
-def load_entries(path: Path):
-    if not path.exists():
+def load_entries():
+    if not DATA_FILE.exists():
         raise FileNotFoundError(
-            f"Leaderboard file not found: {path}"
+            f"Leaderboard file not found: {DATA_FILE}"
         )
 
-    with path.open(
+    with open(
+        DATA_FILE,
         "r",
         encoding="utf-8",
     ) as file:
         data = json.load(file)
 
+    if isinstance(data, list):
+        return data
+
     if isinstance(data, dict):
-        entries = data.get("entries", [])
-    elif isinstance(data, list):
-        entries = data
-    else:
-        raise ValueError(
-            "Leaderboard JSON must contain either "
-            "an array or an object with an 'entries' array."
-        )
+        if "entries" in data:
+            return data["entries"]
 
-    if not isinstance(entries, list):
-        raise ValueError(
-            "'entries' must be a JSON array."
-        )
+        if "traders" in data:
+            return data["traders"]
 
-    return entries
+    raise ValueError(
+        "Leaderboard JSON must be a list or contain "
+        "'entries' or 'traders'."
+    )
 
 
-def normalize_entries(entries):
-    observed_at = datetime.now(
+def main():
+    print("Loading leaderboard data from:")
+    print(DATA_FILE)
+    print()
+
+    entries = load_entries()
+
+    print(
+        f"Entries loaded: {len(entries)}"
+    )
+
+    if not entries:
+        print("No leaderboard entries found.")
+        return
+
+    # One timestamp for the entire import.
+    #
+    # This timestamp represents one independent
+    # leaderboard observation.
+    snapshot_time = datetime.now(
         timezone.utc
     ).isoformat()
 
-    normalized = []
+    prepared = []
 
     for entry in entries:
+
+        if not isinstance(entry, dict):
+            continue
+
         username = str(
             entry.get("username") or ""
         ).strip()
 
         leaderboard = str(
             entry.get("leaderboard") or ""
-        ).strip().lower()
-
-        timeframe = str(
-            entry.get("timeframe") or "week"
         ).strip().lower()
 
         if not username:
@@ -73,70 +89,55 @@ def normalize_entries(entries):
         }:
             continue
 
-        rank = entry.get("rank")
-
-        if rank is not None:
-            rank = int(rank)
-
-        value = float(
-            entry.get("value") or 0
-        )
-
-        normalized.append(
+        prepared.append(
             {
                 "username": username,
                 "leaderboard": leaderboard,
-                "timeframe": timeframe,
+                "timeframe": str(
+                    entry.get("timeframe")
+                    or "week"
+                ).lower(),
                 "category": str(
-                    entry.get("category") or ""
+                    entry.get("category")
+                    or ""
                 ),
-                "rank": rank,
-                "value": value,
-                "observed_at": observed_at,
+                "rank": entry.get("rank"),
+                "value": float(
+                    entry.get("value") or 0
+                ),
+                "observed_at": snapshot_time,
             }
         )
 
-    return normalized
-
-
-def main():
-    path = (
-        Path(sys.argv[1])
-        if len(sys.argv) > 1
-        else DEFAULT_FILE
-    )
-
     print(
-        f"Loading leaderboard data from:\n{path}\n"
+        f"Valid entries: {len(prepared)}"
     )
 
-    entries = load_entries(path)
-    entries = normalize_entries(entries)
-
-    if not entries:
+    if not prepared:
         print(
             "No valid leaderboard entries found."
         )
-        return 1
+        return
 
     saved = save_public_leaderboard(
-        entries
+        prepared
     )
 
     print(
-        f"Valid entries: {len(entries)}"
+        f"Entries saved: {saved}"
     )
 
+    print()
     print(
-        f"Entries processed: {saved}"
+        "Snapshot timestamp:"
     )
+    print(snapshot_time)
 
+    print()
     print(
-        "\nLeaderboard data imported successfully."
+        "Leaderboard snapshot imported successfully."
     )
-
-    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
