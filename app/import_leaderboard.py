@@ -1,5 +1,6 @@
 import hashlib
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -7,21 +8,35 @@ from .db import connect
 from .trader_intel import save_public_leaderboard
 
 
-DATA_FILE = (
+PROJECT_ROOT = (
     Path(__file__).resolve().parent.parent
+)
+
+DEFAULT_DATA_FILE = (
+    PROJECT_ROOT
     / "data"
     / "public_leaderboard.json"
 )
 
+ARCHIVE_DIR = (
+    PROJECT_ROOT
+    / "data"
+    / "leaderboard_history"
+)
 
-def load_entries():
-    if not DATA_FILE.exists():
+
+# ---------------------------------------------------------
+# Load leaderboard data
+# ---------------------------------------------------------
+
+def load_entries(data_file):
+    if not data_file.exists():
         raise FileNotFoundError(
-            f"Leaderboard file not found: {DATA_FILE}"
+            f"Leaderboard file not found: {data_file}"
         )
 
     with open(
-        DATA_FILE,
+        data_file,
         "r",
         encoding="utf-8",
     ) as file:
@@ -31,6 +46,7 @@ def load_entries():
         return data
 
     if isinstance(data, dict):
+
         if "entries" in data:
             return data["entries"]
 
@@ -43,7 +59,12 @@ def load_entries():
     )
 
 
+# ---------------------------------------------------------
+# Normalize entries
+# ---------------------------------------------------------
+
 def normalize_entry(entry):
+
     return {
         "username": str(
             entry.get("username") or ""
@@ -62,28 +83,42 @@ def normalize_entry(entry):
         ),
 
         "value": round(
-            float(entry.get("value") or 0),
+            float(
+                entry.get("value") or 0
+            ),
             8,
         ),
     }
 
 
+# ---------------------------------------------------------
+# Snapshot signature
+# ---------------------------------------------------------
+
 def snapshot_signature(entries):
+
     """
-    Create a stable signature for the actual leaderboard data.
+    Create a stable signature for the actual
+    leaderboard data.
 
-    We intentionally ignore:
-      - observed_at
-      - category
+    These fields are intentionally ignored:
 
-    Those fields should not make identical leaderboard
-    data look like a new snapshot.
+        observed_at
+        category
+        source
+
+    Therefore the exact same public leaderboard
+    cannot create another historical snapshot merely
+    because it was imported at a different time.
     """
 
     normalized = []
 
     for entry in entries:
-        item = normalize_entry(entry)
+
+        item = normalize_entry(
+            entry
+        )
 
         normalized.append(
             (
@@ -107,16 +142,23 @@ def snapshot_signature(entries):
     ).hexdigest()
 
 
+# ---------------------------------------------------------
+# Find duplicate snapshot
+# ---------------------------------------------------------
+
 def find_existing_snapshot(entries):
+
     conn = connect()
 
     try:
+
         rows = conn.execute(
             """
             SELECT
                 username,
                 leaderboard,
                 timeframe,
+                category,
                 rank,
                 value,
                 observed_at
@@ -124,7 +166,9 @@ def find_existing_snapshot(entries):
             ORDER BY observed_at
             """
         ).fetchall()
+
     finally:
+
         conn.close()
 
     snapshots = {}
@@ -135,21 +179,30 @@ def find_existing_snapshot(entries):
 
         snapshots.setdefault(
             key,
-            []
+            [],
         )
 
         snapshots[key].append(
             {
-                "username": row["username"],
-                "leaderboard": row["leaderboard"],
-                "timeframe": row["timeframe"],
-                "rank": row["rank"],
-                "value": row["value"],
+                "username":
+                    row["username"],
+
+                "leaderboard":
+                    row["leaderboard"],
+
+                "timeframe":
+                    row["timeframe"],
+
+                "rank":
+                    row["rank"],
+
+                "value":
+                    row["value"],
             }
         )
 
-    incoming_signature = snapshot_signature(
-        entries
+    incoming_signature = (
+        snapshot_signature(entries)
     )
 
     for (
@@ -157,51 +210,161 @@ def find_existing_snapshot(entries):
         snapshot_entries,
     ) in snapshots.items():
 
-        existing_signature = snapshot_signature(
-            snapshot_entries
+        existing_signature = (
+            snapshot_signature(
+                snapshot_entries
+            )
         )
 
-        if existing_signature == incoming_signature:
+        if (
+            existing_signature
+            == incoming_signature
+        ):
             return observed_at
 
     return None
 
 
+# ---------------------------------------------------------
+# Archive snapshot
+# ---------------------------------------------------------
+
+def archive_snapshot(
+    entries,
+    snapshot_time,
+    source_file,
+):
+
+    ARCHIVE_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    timestamp = (
+        snapshot_time
+        .replace(
+            ":",
+            "",
+        )
+        .replace(
+            ".",
+            "",
+        )
+        .replace(
+            "+00:00",
+            "Z",
+        )
+    )
+
+    archive_file = (
+        ARCHIVE_DIR
+        / f"snapshot_{timestamp}.json"
+    )
+
+    archive_data = {
+        "source": (
+            "Kalshi Social public leaderboard"
+        ),
+
+        "source_file": str(
+            source_file
+        ),
+
+        "captured_at":
+            snapshot_time,
+
+        "entry_count":
+            len(entries),
+
+        "entries":
+            entries,
+    }
+
+    with open(
+        archive_file,
+        "w",
+        encoding="utf-8",
+    ) as file:
+
+        json.dump(
+            archive_data,
+            file,
+            indent=2,
+        )
+
+    return archive_file
+
+
+# ---------------------------------------------------------
+# Main import process
+# ---------------------------------------------------------
+
 def main():
+
+    if len(sys.argv) > 1:
+
+        data_file = Path(
+            sys.argv[1]
+        )
+
+        if not data_file.is_absolute():
+            data_file = (
+                PROJECT_ROOT
+                / data_file
+            )
+
+    else:
+
+        data_file = DEFAULT_DATA_FILE
 
     print(
         "Loading leaderboard data from:"
     )
-    print(DATA_FILE)
+
+    print(data_file)
+
     print()
 
-    entries = load_entries()
+    entries = load_entries(
+        data_file
+    )
 
     print(
         f"Entries loaded: {len(entries)}"
     )
 
     if not entries:
+
         print(
             "No leaderboard entries found."
         )
+
         return
 
     prepared = []
 
     for entry in entries:
 
-        if not isinstance(entry, dict):
+        if not isinstance(
+            entry,
+            dict,
+        ):
             continue
 
-        normalized = normalize_entry(
-            entry
+        normalized = (
+            normalize_entry(
+                entry
+            )
         )
 
-        if not normalized["username"]:
+        if not normalized[
+            "username"
+        ]:
             continue
 
-        if normalized["leaderboard"] not in {
+        if normalized[
+            "leaderboard"
+        ] not in {
             "profit",
             "volume",
             "predictions",
@@ -217,61 +380,110 @@ def main():
     )
 
     if not prepared:
+
         print(
             "No valid leaderboard entries found."
         )
+
         return
 
-    existing_snapshot = find_existing_snapshot(
-        prepared
+    # -----------------------------------------------------
+    # Duplicate protection
+    # -----------------------------------------------------
+
+    existing_snapshot = (
+        find_existing_snapshot(
+            prepared
+        )
     )
 
     if existing_snapshot:
 
         print()
+
         print(
-            "This leaderboard data already exists "
-            "as a recorded snapshot."
+            "This leaderboard data already "
+            "exists as a recorded snapshot."
         )
 
         print(
-            f"Existing snapshot: {existing_snapshot}"
+            f"Existing snapshot: "
+            f"{existing_snapshot}"
         )
 
         print()
+
         print(
             "No new snapshot created."
         )
 
         return
 
-    #
-    # This is a genuinely new snapshot.
-    #
-    snapshot_time = datetime.now(
-        timezone.utc
-    ).isoformat()
+    # -----------------------------------------------------
+    # New snapshot
+    # -----------------------------------------------------
+
+    snapshot_time = (
+        datetime.now(
+            timezone.utc
+        ).isoformat()
+    )
 
     for entry in prepared:
-        entry["observed_at"] = snapshot_time
+
+        entry[
+            "observed_at"
+        ] = snapshot_time
+
+    # -----------------------------------------------------
+    # Save to database
+    # -----------------------------------------------------
 
     saved = save_public_leaderboard(
         prepared
     )
+
+    # -----------------------------------------------------
+    # Archive the exact imported snapshot
+    # -----------------------------------------------------
+
+    archive_file = archive_snapshot(
+        prepared,
+        snapshot_time,
+        data_file,
+    )
+
+    print()
 
     print(
         f"Entries saved: {saved}"
     )
 
     print()
+
     print(
         "Snapshot timestamp:"
     )
-    print(snapshot_time)
+
+    print(
+        snapshot_time
+    )
 
     print()
+
     print(
-        "Leaderboard snapshot imported successfully."
+        "Archived snapshot:"
+    )
+
+    print(
+        archive_file
+    )
+
+    print()
+
+    print(
+        "Leaderboard snapshot "
+        "imported successfully."
     )
 
 
