@@ -10,5 +10,12 @@
     "directory": "./static",
     "binding": "ASSETS",
     "run_worker_first": false
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kalshibot-db",
+      "database_id": "62509f5b-5137-4581-8ace-b32a4265fb61"
+    }
+  ]
 }
