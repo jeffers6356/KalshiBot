@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 from .db import connect
 
 
-DEFAULT_MIN_DOLLARS = 5000.0
+DEFAULT_MIN_DOLLARS = 1000.0
 DEFAULT_WINDOW_MINUTES = 60
 DEFAULT_LIMIT = 50
 
