@@ -225,7 +225,7 @@ async def get_trades(limit: int = 100):
         conn.close()
 
 
-@app.get("/api/traders")
+@app.get("/api/trader-records")
 async def get_traders():
     return trader_scores()
 
