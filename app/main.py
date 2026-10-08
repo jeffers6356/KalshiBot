@@ -419,10 +419,14 @@ async def trader(username: str):
 
 @app.get("/api/signals")
 async def signals(
+    request: Request,
     window_minutes: int = 30,
     min_traders: int = 2,
 ):
-    return consensus_signals(
+    db = get_db(request)
+
+    return await consensus_signals(
+        db,
         window_minutes,
         min_traders,
     )
