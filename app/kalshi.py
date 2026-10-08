@@ -60,12 +60,12 @@ class KalshiClient:
         await self.close()
 
     async def _get(
-    self,
-    path: str,
-    params: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    url = f"{self.base_url}/{path.lstrip('/')}"
-    last_error = None
+            self,
+            path: str,
+            params: Optional[Dict[str, Any]] = None,
+        ) -> Dict[str, Any]:
+            url = f"{self.base_url}/{path.lstrip('/')}"
+            last_error = None
 
     for attempt in range(self.retries + 1):
         try:
