@@ -1200,27 +1200,22 @@ async function loadTraders() {
 
                             </div>
 
-                            ${historyHtml}
-                            
-                            <div class="trader-chips">
-                                <span class="chip">${consistency} CONSISTENCY</span>
-                                <span class="chip">${trend}${trendSymbol}</span>
-                                <span class="chip">${confidence} CONFIDENCE</span>
+                          ${historyHtml}
 
                             <div class="chips">
-
+                            
                                 <span class="chip">
                                     ${escapeHtml(
                                         consistency
                                     )} CONSISTENCY
                                 </span>
-
+                            
                                 <span class="chip">
                                     ${escapeHtml(
                                         trend
                                     )}${trendSymbol}
                                 </span>
-
+                            
                                 <span class="chip">
                                     ${escapeHtml(
                                         confidence
