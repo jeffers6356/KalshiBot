@@ -3,16 +3,11 @@ import sqlite3
 from pathlib import Path
 
 
-# Local development database.
-# Cloudflare Workers does not provide a writable local filesystem,
-# so database operations are disabled there until D1 is connected.
+# Cloudflare Workers cannot use the local SQLite filesystem.
+# Local development still uses SQLite normally.
+IS_CLOUDFLARE = os.getenv("CLOUDFLARE_WORKERS") == "1"
 
-IS_CLOUDFLARE = os.getenv("WORKERS_RS_VERSION") is not None
-
-
-if IS_CLOUDFLARE:
-    DB_PATH = None
-else:
+if not IS_CLOUDFLARE:
     DB_PATH = Path(
         os.getenv(
             "KALSHI_DB_PATH",
@@ -20,13 +15,15 @@ else:
         )
     )
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+else:
+    DB_PATH = None
 
 
 def connect():
     if IS_CLOUDFLARE:
         raise RuntimeError(
             "SQLite is not available in Cloudflare Workers. "
-            "Use Cloudflare D1 for persistent database access."
+            "Persistent storage must use Cloudflare D1."
         )
 
     conn = sqlite3.connect(DB_PATH)
