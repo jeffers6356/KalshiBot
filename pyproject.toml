@@ -1,0 +1,9 @@
+[project]
+name = "kalshibot"
+version = "0.1.0"
+description = "Kalshi Smart Money Intelligence"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "workers-py"
+]
