@@ -218,5 +218,5 @@ class KalshiClient:
         }
 
     async def health_check(self) -> bool:
-    data = await self.markets_page(status="open", limit=1)
-    return "markets" in data
+        data = await self.markets_page(status="open", limit=1)
+        return "markets" in data
