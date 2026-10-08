@@ -1,24 +1,20 @@
-import os
 import asyncio
+import base64
 from typing import Any, Dict, List, Optional
 
-import httpx2 as httpx
+import httpx
+
+from js import Buffer, Date, TextEncoder, crypto
+from pyodide.ffi import to_js
 
 
-BASE_URL = os.getenv(
-    "KALSHI_BASE_URL",
-    "https://external-api.kalshi.com/trade-api/v2",
-)
+BASE_URL = "https://external-api.kalshi.com/trade-api/v2"
 
-# Kalshi currently supports paginated public API responses.
-# Keep this comfortably below the documented maximum.
-DEFAULT_PAGE_SIZE = int(os.getenv("KALSHI_PAGE_SIZE", "200"))
+DEFAULT_PAGE_SIZE = 200
+DEFAULT_MAX_PAGES = 20
+DEFAULT_RETRIES = 3
 
-# Safety limits so a bad cursor/API response cannot cause an infinite loop.
-DEFAULT_MAX_PAGES = int(os.getenv("KALSHI_MAX_PAGES", "20"))
-
-# Number of retries for temporary failures.
-DEFAULT_RETRIES = int(os.getenv("KALSHI_RETRIES", "3"))
+_encoder = TextEncoder.new()
 
 
 class KalshiAPIError(Exception):
@@ -29,8 +25,11 @@ class KalshiClient:
     """
     Lightweight asynchronous client for Kalshi's public API.
 
-    This version intentionally focuses on public market/trade data.
-    Authentication is not required for these endpoints.
+    Supports authenticated request signing with either:
+      - Ed25519
+      - RSA-PSS / SHA-256
+
+    Credentials are supplied at runtime from Cloudflare Worker secrets.
     """
 
     def __init__(
@@ -38,9 +37,13 @@ class KalshiClient:
         base_url: str = BASE_URL,
         timeout: float = 20.0,
         retries: int = DEFAULT_RETRIES,
+        api_key_id: Optional[str] = None,
+        private_key_pem: Optional[str] = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.retries = retries
+        self.api_key_id = api_key_id
+        self.private_key_pem = private_key_pem
 
         self.client = httpx.AsyncClient(
             timeout=timeout,
@@ -59,46 +62,132 @@ class KalshiClient:
     async def __aexit__(self, exc_type, exc, tb):
         await self.close()
 
+    async def _sign_request(
+        self,
+        method: str,
+        path: str,
+    ) -> Dict[str, str]:
+        if not self.api_key_id or not self.private_key_pem:
+            return {}
+
+        timestamp = str(int(Date.now()))
+
+        path_without_query = path.split("?")[0]
+
+        message = (
+            f"{timestamp}"
+            f"{method.upper()}"
+            f"{path_without_query}"
+        )
+
+        # Extract the base64 DER body from the PEM.
+        pem_lines = [
+            line.strip()
+            for line in self.private_key_pem.strip().splitlines()
+            if not line.strip().startswith("-----")
+        ]
+
+        der_base64 = "".join(pem_lines)
+
+        key_data = Buffer.from(der_base64, "base64")
+        message_data = _encoder.encode(message)
+
+        # Try Ed25519 first.
+        #
+        # Kalshi recommends Ed25519 for new API keys.
+        try:
+            key = await crypto.subtle.importKey(
+                "pkcs8",
+                key_data,
+                to_js({"name": "Ed25519"}),
+                False,
+                ["sign"],
+            )
+
+            signature = await crypto.subtle.sign(
+                "Ed25519",
+                key,
+                message_data,
+            )
+
+        except Exception:
+            # Fall back to RSA-PSS / SHA-256.
+            key = await crypto.subtle.importKey(
+                "pkcs8",
+                key_data,
+                to_js({
+                    "name": "RSA-PSS",
+                    "hash": "SHA-256",
+                }),
+                False,
+                ["sign"],
+            )
+
+            signature = await crypto.subtle.sign(
+                to_js({
+                    "name": "RSA-PSS",
+                    "saltLength": 32,
+                }),
+                key,
+                message_data,
+            )
+
+        encoded_signature = Buffer.from(signature).toString("base64")
+
+        return {
+            "KALSHI-ACCESS-KEY": self.api_key_id,
+            "KALSHI-ACCESS-TIMESTAMP": timestamp,
+            "KALSHI-ACCESS-SIGNATURE": encoded_signature,
+        }
+
     async def _get(
         self,
         path: str,
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         url = f"{self.base_url}/{path.lstrip('/')}"
+
         last_error = None
 
         for attempt in range(self.retries + 1):
             try:
-                response = await self.client.get(url, params=params)
-    
+                auth_headers = await self._sign_request("GET", path)
+
+                response = await self.client.get(
+                    url,
+                    params=params,
+                    headers=auth_headers,
+                )
+
                 if response.status_code == 429 or response.status_code >= 500:
                     if attempt < self.retries:
                         delay = 1.0 * (2 ** attempt)
                         await asyncio.sleep(delay)
                         continue
-    
+
                 if response.status_code >= 400:
                     body = response.text[:1000]
+
                     raise KalshiAPIError(
-                        f"Kalshi API returned HTTP {response.status_code}: "
-                        f"{body}"
+                        f"Kalshi API returned HTTP "
+                        f"{response.status_code}: {body}"
                     )
-    
+
                 return response.json()
-    
+
             except KalshiAPIError:
                 raise
-    
+
             except (httpx.HTTPError, ValueError) as exc:
                 last_error = exc
-    
+
                 if attempt < self.retries:
                     delay = 1.0 * (2 ** attempt)
                     await asyncio.sleep(delay)
                     continue
-    
+
                 break
-    
+
         raise KalshiAPIError(
             f"Kalshi API request failed: {url}. "
             f"Last error: {last_error}"
@@ -106,51 +195,46 @@ class KalshiClient:
 
     async def markets_page(
         self,
-        status: str = "open",
+        status: Optional[str] = "open",
         limit: int = DEFAULT_PAGE_SIZE,
         cursor: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Retrieve one page of markets.
-        """
+
         params: Dict[str, Any] = {
-            "status": status,
             "limit": min(limit, 200),
         }
+
+        if status:
+            params["status"] = status
 
         if cursor:
             params["cursor"] = cursor
 
-        return await self._get("/markets", params=params)
+        return await self._get(
+            "/markets",
+            params=params,
+        )
 
     async def markets(
         self,
-        status: str = "open",
-        page_size: int = DEFAULT_PAGE_SIZE,
+        status: Optional[str] = "open",
+        limit: int = DEFAULT_PAGE_SIZE,
         max_pages: int = DEFAULT_MAX_PAGES,
     ) -> Dict[str, Any]:
-        """
-        Retrieve multiple pages of markets.
 
-        Returns the same general structure as the Kalshi API:
-
-            {
-                "markets": [...],
-                "cursor": ""
-            }
-        """
         all_markets: List[Dict[str, Any]] = []
-        cursor: Optional[str] = None
+        cursor = None
 
         for _ in range(max_pages):
             data = await self.markets_page(
                 status=status,
-                limit=page_size,
+                limit=limit,
                 cursor=cursor,
             )
 
-            page_markets = data.get("markets", [])
-            all_markets.extend(page_markets)
+            all_markets.extend(
+                data.get("markets", [])
+            )
 
             cursor = data.get("cursor")
 
@@ -168,11 +252,7 @@ class KalshiClient:
         cursor: Optional[str] = None,
         ticker: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Retrieve one page of public market trades.
 
-        If ticker is supplied, only trades for that market are returned.
-        """
         params: Dict[str, Any] = {
             "limit": min(limit, 200),
         }
@@ -183,22 +263,20 @@ class KalshiClient:
         if ticker:
             params["ticker"] = ticker
 
-        return await self._get("/markets/trades", params=params)
+        return await self._get(
+            "/markets/trades",
+            params=params,
+        )
 
     async def trades(
         self,
         limit: int = DEFAULT_PAGE_SIZE,
-        ticker: Optional[str] = None,
         max_pages: int = DEFAULT_MAX_PAGES,
+        ticker: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Retrieve multiple pages of public trades.
 
-        The optional ticker argument allows us to collect trades for
-        a specific market instead of the exchange-wide trade feed.
-        """
         all_trades: List[Dict[str, Any]] = []
-        cursor: Optional[str] = None
+        cursor = None
 
         for _ in range(max_pages):
             data = await self.trades_page(
@@ -207,8 +285,9 @@ class KalshiClient:
                 ticker=ticker,
             )
 
-            page_trades = data.get("trades", [])
-            all_trades.extend(page_trades)
+            all_trades.extend(
+                data.get("trades", [])
+            )
 
             cursor = data.get("cursor")
 
@@ -221,5 +300,9 @@ class KalshiClient:
         }
 
     async def health_check(self) -> bool:
-        data = await self.markets_page(status="open", limit=1)
+        data = await self.markets_page(
+            status="open",
+            limit=1,
+        )
+
         return "markets" in data
