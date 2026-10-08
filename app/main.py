@@ -46,31 +46,32 @@ async def home():
 
 @app.get("/api/health")
 async def health(request: Request):
-    """
-    Check both the application, D1 database, and Kalshi public API.
-    """
     kalshi_ok = False
     db_ok = False
+    db_error = None
+    kalshi_error = None
 
     try:
         db = get_db(request)
         await db.first("SELECT 1 AS ok")
         db_ok = True
-    except Exception:
-        db_ok = False
+    except Exception as exc:
+        db_error = f"{type(exc).__name__}: {exc}"
 
     try:
         async with KalshiClient() as client:
             kalshi_ok = await client.health_check()
-    except Exception:
-        kalshi_ok = False
+    except Exception as exc:
+        kalshi_error = f"{type(exc).__name__}: {exc}"
 
     return {
         "ok": True,
         "service": "kalshi-smart-money",
         "version": "0.1.1",
         "database": "connected" if db_ok else "unavailable",
+        "database_error": db_error,
         "kalshi_api": "connected" if kalshi_ok else "unavailable",
+        "kalshi_error": kalshi_error,
     }
 
 
