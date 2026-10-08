@@ -8,24 +8,27 @@ from .db import connect
 
 
 # ---------------------------------------------------------
-# Scoring configuration
+# Smart Trader scoring
 # ---------------------------------------------------------
 
-PROFIT_WEIGHT = 0.50
-VOLUME_WEIGHT = 0.20
+PROFIT_WEIGHT = 0.65
+VOLUME_WEIGHT = 0.25
 PREDICTION_WEIGHT = 0.10
-BREADTH_WEIGHT = 0.10
-CONSISTENCY_WEIGHT = 0.10
+
+MAX_BREADTH_BONUS = 5.0
 
 
 def _rank_score(rank: Optional[int]) -> float:
     """
     Convert a leaderboard rank into a 0-100 score.
 
-    Rank 1 = 100
-    Rank 2 = ~96
-    ...
-    Rank 12 = ~63
+    The public leaderboard currently exposes roughly the
+    top 12 positions to us.
+
+    #1  = 100
+    #2  = 95.45
+    #7  = 72.73
+    #12 = 50.00
 
     Missing rank = 0
     """
@@ -41,8 +44,10 @@ def _rank_score(rank: Optional[int]) -> float:
     if rank <= 0:
         return 0.0
 
-    # Smooth decay rather than a harsh linear penalty.
-    score = 100.0 / (1.0 + ((rank - 1) * 0.12))
+    # Linear 1-12 scale.
+    score = 100.0 - (
+        (rank - 1) * (50.0 / 11.0)
+    )
 
     return round(
         max(0.0, min(100.0, score)),
@@ -60,9 +65,14 @@ def _average(values: List[float]) -> float:
     )
 
 
-def _snapshot_score(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _snapshot_score(
+    entries: List[Dict[str, Any]]
+) -> Dict[str, Any]:
     """
-    Calculate the trader's score for one leaderboard snapshot.
+    Calculate the trader's score for one snapshot.
+
+    Missing leaderboard categories are ignored rather
+    than treated as poor performance.
     """
 
     profit_rank = None
@@ -98,52 +108,97 @@ def _snapshot_score(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
         prediction_rank
     )
 
+    #
+    # Only use weights for categories in which the
+    # trader actually appears.
+    #
+    weighted_total = 0.0
+    active_weight = 0.0
+
+    if profit_rank is not None:
+        weighted_total += (
+            profit_score * PROFIT_WEIGHT
+        )
+        active_weight += PROFIT_WEIGHT
+
+    if volume_rank is not None:
+        weighted_total += (
+            volume_score * VOLUME_WEIGHT
+        )
+        active_weight += VOLUME_WEIGHT
+
+    if prediction_rank is not None:
+        weighted_total += (
+            prediction_score
+            * PREDICTION_WEIGHT
+        )
+        active_weight += PREDICTION_WEIGHT
+
+    if active_weight > 0:
+        base_score = (
+            weighted_total
+            / active_weight
+        )
+    else:
+        base_score = 0.0
+
+    #
+    # Breadth bonus.
+    #
+    # Appearing on multiple leaderboards is useful
+    # evidence, but it should never overpower profit.
+    #
     leaderboards_present = sum(
-        value is not None
-        for value in (
+        rank is not None
+        for rank in (
             profit_rank,
             volume_rank,
             prediction_rank,
         )
     )
 
-    #
-    # Breadth rewards traders who appear in
-    # multiple leaderboard categories.
-    #
-    breadth_score = (
-        leaderboards_present / 3.0
-    ) * 100.0
+    if leaderboards_present <= 1:
+        breadth_bonus = 0.0
 
-    base_score = (
-        profit_score * PROFIT_WEIGHT
-        + volume_score * VOLUME_WEIGHT
-        + prediction_score * PREDICTION_WEIGHT
-        + breadth_score * BREADTH_WEIGHT
+    elif leaderboards_present == 2:
+        breadth_bonus = 3.0
+
+    else:
+        breadth_bonus = MAX_BREADTH_BONUS
+
+    final_score = min(
+        100.0,
+        base_score + breadth_bonus,
     )
 
     return {
         "score": round(
-            base_score,
+            final_score,
             2,
         ),
+
         "profit_score": round(
             profit_score,
             2,
         ),
+
         "volume_score": round(
             volume_score,
             2,
         ),
+
         "prediction_score": round(
             prediction_score,
             2,
         ),
+
         "breadth_score": round(
-            breadth_score,
+            breadth_bonus,
             2,
         ),
+
         "observations": len(entries),
+
         "leaderboards": sorted(
             {
                 entry.get("leaderboard")
@@ -151,8 +206,11 @@ def _snapshot_score(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
                 if entry.get("leaderboard")
             }
         ),
+
         "best_profit_rank": profit_rank,
+
         "best_volume_rank": volume_rank,
+
         "best_prediction_rank": prediction_rank,
     }
 
@@ -160,12 +218,6 @@ def _snapshot_score(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
 def _consistency_label(
     scores: List[float],
 ) -> str:
-    """
-    Determine how consistent a trader has been.
-
-    We deliberately require multiple observations before
-    assigning meaningful consistency.
-    """
 
     if len(scores) < 2:
         return "NEW"
@@ -193,9 +245,6 @@ def _trend_label(
     current_score: float,
     historical_scores: List[float],
 ) -> str:
-    """
-    Compare the current snapshot with previous snapshots.
-    """
 
     if not historical_scores:
         return "NEW"
@@ -222,10 +271,6 @@ def _confidence_label(
     snapshot_count: int,
     consistency: str,
 ) -> str:
-    """
-    Confidence describes how much historical evidence
-    we have, not how certain the trader will be profitable.
-    """
 
     if snapshot_count < 2:
         return "LOW"
@@ -246,10 +291,6 @@ def trader_intelligence(
     min_observations: int = 1,
     limit: int = 50,
 ) -> List[Dict[str, Any]]:
-    """
-    Build intelligence for every trader represented
-    in the leaderboard history.
-    """
 
     conn = connect()
 
@@ -357,38 +398,11 @@ def trader_intelligence(
             else 0.0
         )
 
-        #
-        # Once we have history, reward consistency slightly.
-        #
-        final_score = current["score"]
-
-        if len(snapshot_scores) >= 3:
-            consistency_bonus = min(
-                10.0,
-                historical_average / 10.0,
-            )
-
-            final_score += (
-                consistency_bonus
-                * CONSISTENCY_WEIGHT
-            )
-
-        final_score = round(
-            max(
-                0.0,
-                min(
-                    100.0,
-                    final_score,
-                ),
-            ),
-            2,
-        )
-
         results.append(
             {
                 "username": username,
 
-                "score": final_score,
+                "score": current["score"],
 
                 "profit_score": current[
                     "profit_score"
@@ -465,6 +479,7 @@ def top_traders(
     min_observations: int = 1,
     limit: int = 20,
 ) -> List[Dict[str, Any]]:
+
     return trader_intelligence(
         min_observations=min_observations,
         limit=limit,
@@ -474,6 +489,7 @@ def top_traders(
 def trader_detail(
     username: str,
 ) -> Optional[Dict[str, Any]]:
+
     traders = trader_intelligence(
         min_observations=1,
         limit=1000,
@@ -481,7 +497,10 @@ def trader_detail(
 
     for trader in traders:
 
-        if trader["username"].lower() == username.lower():
+        if (
+            trader["username"].lower()
+            == username.lower()
+        ):
             return trader
 
     return None
@@ -490,12 +509,6 @@ def trader_detail(
 def save_public_leaderboard(
     entries: List[Dict[str, Any]],
 ) -> int:
-    """
-    Save one complete public leaderboard snapshot.
-
-    The caller is responsible for assigning one identical
-    observed_at timestamp to every entry in the snapshot.
-    """
 
     if not entries:
         return 0
