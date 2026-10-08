@@ -417,6 +417,56 @@ def trader_intelligence(
             else 0.0
         )
 
+                history = []
+
+        for snapshot in snapshot_scores:
+            history.append(
+                {
+                    "observed_at":
+                        snapshot["observed_at"],
+
+                    "score":
+                        snapshot["score"],
+
+                    "score_band":
+                        _score_band(
+                            snapshot["score"]
+                        ),
+
+                    "profit_score":
+                        snapshot["profit_score"],
+
+                    "volume_score":
+                        snapshot["volume_score"],
+
+                    "prediction_score":
+                        snapshot["prediction_score"],
+
+                    "breadth_score":
+                        snapshot["breadth_score"],
+
+                    "observations":
+                        snapshot["observations"],
+
+                    "leaderboards":
+                        snapshot["leaderboards"],
+
+                    "best_profit_rank":
+                        snapshot[
+                            "best_profit_rank"
+                        ],
+
+                    "best_volume_rank":
+                        snapshot[
+                            "best_volume_rank"
+                        ],
+
+                    "best_prediction_rank":
+                        snapshot[
+                            "best_prediction_rank"
+                        ],
+                }
+            )
         results.append(
             {
                 "username": username,
