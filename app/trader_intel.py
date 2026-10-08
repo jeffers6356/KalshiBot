@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import Any, Dict, List
 
 from .db import connect
@@ -15,9 +14,11 @@ def _rank_score(rank: int | None) -> float:
     """
     Convert leaderboard rank into a 0-100 score.
 
-    Rank 1 is 100.
-    Lower-ranked traders receive progressively smaller scores.
+    Rank 1 = 100.
+    Rank 2 = 97.
+    Rank 10 = 73.
     """
+
     if rank is None or rank <= 0:
         return 0.0
 
@@ -34,21 +35,99 @@ def _average(values: List[float]) -> float:
     return sum(values) / len(values)
 
 
+def _calculate_snapshot_score(
+    profit_score: float,
+    volume_score: float,
+    prediction_score: float,
+    leaderboard_count: int,
+) -> float:
+
+    score = (
+        profit_score
+        * LEADERBOARD_WEIGHTS["profit"]
+        + volume_score
+        * LEADERBOARD_WEIGHTS["volume"]
+        + prediction_score
+        * LEADERBOARD_WEIGHTS["predictions"]
+    )
+
+    breadth_bonus = min(
+        10.0,
+        leaderboard_count * 3.33,
+    )
+
+    return min(
+        100.0,
+        score + breadth_bonus,
+    )
+
+
+def _trend_label(
+    current_score: float,
+    historical_average: float,
+) -> str:
+
+    if historical_average <= 0:
+        return "NEW"
+
+    difference = (
+        current_score -
+        historical_average
+    )
+
+    if difference >= 8:
+        return "RISING"
+
+    if difference <= -8:
+        return "FALLING"
+
+    return "STABLE"
+
+
+def _consistency_label(
+    snapshot_count: int,
+    score_values: List[float],
+) -> str:
+
+    if snapshot_count < 2:
+        return "NEW"
+
+    if not score_values:
+        return "NEW"
+
+    average = _average(score_values)
+
+    if average <= 0:
+        return "NEW"
+
+    variance = _average(
+        [
+            abs(score - average)
+            for score in score_values
+        ]
+    )
+
+    if snapshot_count >= 5 and variance <= 8:
+        return "HIGH"
+
+    if snapshot_count >= 3 and variance <= 15:
+        return "MEDIUM"
+
+    return "LOW"
+
+
 def trader_intelligence(
     min_observations: int = 1,
     limit: int = 50,
 ) -> List[Dict[str, Any]]:
     """
-    Build a trader intelligence ranking from publicly obtained
-    leaderboard observations.
+    Build trader intelligence from public leaderboard
+    observations.
 
-    This does NOT infer or expose private trading activity.
+    Historical consistency is only calculated when
+    multiple distinct snapshots exist.
 
-    The ranking rewards:
-        - Profit leaderboard performance
-        - Volume leaderboard presence
-        - Prediction count
-        - Repeated appearances over time
+    This function does not infer private trading activity.
     """
 
     min_observations = max(
@@ -84,18 +163,20 @@ def trader_intelligence(
     traders: Dict[str, Dict[str, Any]] = {}
 
     for row in rows:
+
         username = row["username"]
 
         if username not in traders:
             traders[username] = {
                 "username": username,
-                "profit_scores": [],
-                "volume_scores": [],
-                "prediction_scores": [],
                 "observations": 0,
                 "leaderboards": set(),
                 "first_seen": row["observed_at"],
                 "last_seen": row["observed_at"],
+                "profit_scores": [],
+                "volume_scores": [],
+                "prediction_scores": [],
+                "snapshot_scores": [],
                 "profit_value": 0.0,
                 "volume_value": 0.0,
                 "prediction_value": 0.0,
@@ -111,18 +192,23 @@ def trader_intelligence(
         ).lower()
 
         rank = row["rank"]
+
         value = float(
             row["value"] or 0
         )
 
         trader["observations"] += 1
+
         trader["leaderboards"].add(
             leaderboard
         )
 
-        trader["last_seen"] = row["observed_at"]
+        trader["last_seen"] = (
+            row["observed_at"]
+        )
 
         if leaderboard == "profit":
+
             trader["profit_scores"].append(
                 _rank_score(rank)
             )
@@ -136,12 +222,14 @@ def trader_intelligence(
                 trader["best_profit_rank"] is None
                 or (
                     rank is not None
-                    and rank < trader["best_profit_rank"]
+                    and rank <
+                    trader["best_profit_rank"]
                 )
             ):
                 trader["best_profit_rank"] = rank
 
         elif leaderboard == "volume":
+
             trader["volume_scores"].append(
                 _rank_score(rank)
             )
@@ -155,12 +243,14 @@ def trader_intelligence(
                 trader["best_volume_rank"] is None
                 or (
                     rank is not None
-                    and rank < trader["best_volume_rank"]
+                    and rank <
+                    trader["best_volume_rank"]
                 )
             ):
                 trader["best_volume_rank"] = rank
 
         elif leaderboard == "predictions":
+
             trader["prediction_scores"].append(
                 _rank_score(rank)
             )
@@ -174,7 +264,8 @@ def trader_intelligence(
                 trader["best_prediction_rank"] is None
                 or (
                     rank is not None
-                    and rank < trader["best_prediction_rank"]
+                    and rank <
+                    trader["best_prediction_rank"]
                 )
             ):
                 trader["best_prediction_rank"] = rank
@@ -198,76 +289,113 @@ def trader_intelligence(
             trader["prediction_scores"]
         )
 
-        leaderboard_score = (
-            profit_score
-            * LEADERBOARD_WEIGHTS["profit"]
-            + volume_score
-            * LEADERBOARD_WEIGHTS["volume"]
-            + prediction_score
-            * LEADERBOARD_WEIGHTS["predictions"]
+        current_score = _calculate_snapshot_score(
+            profit_score,
+            volume_score,
+            prediction_score,
+            len(trader["leaderboards"]),
         )
 
-        # Reward traders who repeatedly appear.
-        consistency_bonus = min(
-            15.0,
-            trader["observations"] * 1.5,
+        #We currently have leaderboard observations rather
+        #than explicitly grouped snapshots.
+
+        #Until multiple collection timestamps exist,
+        #historical statistics remain NEW.
+       
+
+        snapshot_scores = trader[
+            "snapshot_scores"
+        ]
+
+        historical_average = (
+            _average(snapshot_scores)
+            if snapshot_scores
+            else 0.0
         )
 
-        # Reward appearing on multiple leaderboard types.
-        breadth_bonus = min(
-            10.0,
-            len(trader["leaderboards"]) * 3.33,
+        consistency = _consistency_label(
+            len(snapshot_scores),
+            snapshot_scores,
         )
 
-        total_score = min(
-            100.0,
-            leaderboard_score
-            + consistency_bonus
-            + breadth_bonus,
+        trend = _trend_label(
+            current_score,
+            historical_average,
         )
 
         results.append(
             {
-                "username": trader["username"],
-                "score": round(
-                    total_score
-                ),
-                "profit_score": round(
-                    profit_score
-                ),
-                "volume_score": round(
-                    volume_score
-                ),
-                "prediction_score": round(
-                    prediction_score
-                ),
-                "observations": trader["observations"],
-                "leaderboards": sorted(
-                    trader["leaderboards"]
-                ),
+                "username":
+                    trader["username"],
+
+                "score":
+                    round(current_score),
+
+                "profit_score":
+                    round(profit_score),
+
+                "volume_score":
+                    round(volume_score),
+
+                "prediction_score":
+                    round(prediction_score),
+
+                "observations":
+                    trader["observations"],
+
+                "leaderboards":
+                    sorted(
+                        trader["leaderboards"]
+                    ),
+
                 "best_profit_rank":
                     trader["best_profit_rank"],
+
                 "best_volume_rank":
                     trader["best_volume_rank"],
+
                 "best_prediction_rank":
-                    trader["best_prediction_rank"],
+                    trader[
+                        "best_prediction_rank"
+                    ],
+
                 "profit_value":
                     round(
                         trader["profit_value"],
                         2,
                     ),
+
                 "volume_value":
                     round(
                         trader["volume_value"],
                         2,
                     ),
+
                 "prediction_value":
                     round(
-                        trader["prediction_value"],
+                        trader[
+                            "prediction_value"
+                        ],
                         2,
                     ),
+
+                "historical_average":
+                    round(
+                        historical_average
+                    ),
+
+                "consistency":
+                    consistency,
+
+                "trend":
+                    trend,
+
+                "snapshot_count":
+                    len(snapshot_scores),
+
                 "first_seen":
                     trader["first_seen"],
+
                 "last_seen":
                     trader["last_seen"],
             }
@@ -303,12 +431,14 @@ def trader_detail(
     username: str,
 ) -> Dict[str, Any] | None:
     """
-    Return detailed leaderboard history for one public trader.
+    Return detailed public leaderboard history
+    for one trader.
     """
 
     conn = connect()
 
     try:
+
         rows = conn.execute(
             """
             SELECT
@@ -325,6 +455,7 @@ def trader_detail(
             """,
             (username,),
         ).fetchall()
+
     finally:
         conn.close()
 
@@ -334,18 +465,24 @@ def trader_detail(
     history = []
 
     for row in rows:
+
         history.append(
             {
                 "leaderboard":
                     row["leaderboard"],
+
                 "timeframe":
                     row["timeframe"],
+
                 "category":
                     row["category"],
+
                 "rank":
                     row["rank"],
+
                 "value":
                     row["value"],
+
                 "observed_at":
                     row["observed_at"],
             }
@@ -360,15 +497,21 @@ def trader_detail(
         (
             item
             for item in rankings
-            if item["username"] == username
+            if item["username"] ==
+            username
         ),
         None,
     )
 
     return {
-        "username": username,
-        "summary": summary,
-        "history": history,
+        "username":
+            username,
+
+        "summary":
+            summary,
+
+        "history":
+            history,
     }
 
 
@@ -376,31 +519,24 @@ def save_public_leaderboard(
     entries: List[Dict[str, Any]],
 ) -> int:
     """
-    Save legitimately obtained public leaderboard data.
+    Save legitimately obtained public
+    leaderboard data.
 
-    Expected entry format:
-
-        {
-            "username": "example",
-            "leaderboard": "profit",
-            "timeframe": "week",
-            "rank": 7,
-            "value": 96979,
-            "observed_at": "..."
-        }
-
-    This function deliberately accepts supplied public data
-    instead of attempting to bypass Kalshi Social access
-    controls.
+    This function deliberately accepts
+    supplied public data rather than
+    attempting to bypass Kalshi Social
+    access controls.
     """
 
     if not entries:
         return 0
 
     conn = connect()
+
     saved = 0
 
     try:
+
         for entry in entries:
 
             username = str(
@@ -441,7 +577,7 @@ def save_public_leaderboard(
                 (username,),
             )
 
-            conn.execute(
+            cursor = conn.execute(
                 """
                 INSERT OR IGNORE INTO
                 leaderboard_snapshots(
@@ -460,17 +596,21 @@ def save_public_leaderboard(
                     leaderboard,
                     timeframe,
                     str(
-                        entry.get("category") or ""
+                        entry.get("category")
+                        or ""
                     ),
                     entry.get("rank"),
                     float(
                         entry.get("value") or 0
                     ),
-                    entry.get("observed_at"),
+                    entry.get(
+                        "observed_at"
+                    ),
                 ),
             )
 
-            saved += 1
+            if cursor.rowcount > 0:
+                saved += 1
 
         conn.commit()
 
