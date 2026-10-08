@@ -2,7 +2,7 @@ import os
 import asyncio
 from typing import Any, Dict, List, Optional
 
-import httpx
+import httpx2 as httpx
 
 
 BASE_URL = os.getenv(
