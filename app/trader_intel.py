@@ -4,7 +4,7 @@ from collections import defaultdict
 from statistics import mean
 from typing import Any, Dict, List, Optional
 
-from .db import connect
+from .db import D1Database
 
 
 # ---------------------------------------------------------
@@ -21,9 +21,6 @@ MAX_BREADTH_BONUS = 5.0
 def _rank_score(rank: Optional[int]) -> float:
     """
     Convert a leaderboard rank into a 0-100 score.
-
-    The public leaderboard currently exposes roughly the
-    top 12 positions to us.
 
     #1  = 100
     #2  = 95.45
@@ -44,7 +41,6 @@ def _rank_score(rank: Optional[int]) -> float:
     if rank <= 0:
         return 0.0
 
-    # Linear 1-12 scale.
     score = 100.0 - (
         (rank - 1) * (50.0 / 11.0)
     )
@@ -80,11 +76,7 @@ def _snapshot_score(
     prediction_rank = None
 
     for entry in entries:
-
-        leaderboard = entry.get(
-            "leaderboard"
-        )
-
+        leaderboard = entry.get("leaderboard")
         rank = entry.get("rank")
 
         if leaderboard == "profit":
@@ -96,22 +88,12 @@ def _snapshot_score(
         elif leaderboard == "predictions":
             prediction_rank = rank
 
-    profit_score = _rank_score(
-        profit_rank
-    )
+    profit_score = _rank_score(profit_rank)
+    volume_score = _rank_score(volume_rank)
+    prediction_score = _rank_score(prediction_rank)
 
-    volume_score = _rank_score(
-        volume_rank
-    )
-
-    prediction_score = _rank_score(
-        prediction_rank
-    )
-
-    #
     # Only use weights for categories in which the
     # trader actually appears.
-    #
     weighted_total = 0.0
     active_weight = 0.0
 
@@ -129,25 +111,18 @@ def _snapshot_score(
 
     if prediction_rank is not None:
         weighted_total += (
-            prediction_score
-            * PREDICTION_WEIGHT
+            prediction_score * PREDICTION_WEIGHT
         )
         active_weight += PREDICTION_WEIGHT
 
     if active_weight > 0:
         base_score = (
-            weighted_total
-            / active_weight
+            weighted_total / active_weight
         )
     else:
         base_score = 0.0
 
-    #
     # Breadth bonus.
-    #
-    # Appearing on multiple leaderboards is useful
-    # evidence, but it should never overpower profit.
-    #
     leaderboards_present = sum(
         rank is not None
         for rank in (
@@ -176,29 +151,23 @@ def _snapshot_score(
             final_score,
             2,
         ),
-
         "profit_score": round(
             profit_score,
             2,
         ),
-
         "volume_score": round(
             volume_score,
             2,
         ),
-
         "prediction_score": round(
             prediction_score,
             2,
         ),
-
         "breadth_score": round(
             breadth_bonus,
             2,
         ),
-
         "observations": len(entries),
-
         "leaderboards": sorted(
             {
                 entry.get("leaderboard")
@@ -206,11 +175,8 @@ def _snapshot_score(
                 if entry.get("leaderboard")
             }
         ),
-
         "best_profit_rank": profit_rank,
-
         "best_volume_rank": volume_rank,
-
         "best_prediction_rank": prediction_rank,
     }
 
@@ -266,6 +232,7 @@ def _trend_label(
 
     return "STABLE"
 
+
 def _score_band(score: float) -> str:
     """
     Translate the numerical Smart Trader score
@@ -285,6 +252,7 @@ def _score_band(score: float) -> str:
         return "WATCH"
 
     return "WEAK"
+
 
 def _confidence_label(
     snapshot_count: int,
@@ -306,40 +274,33 @@ def _confidence_label(
     return "LOW"
 
 
-def trader_intelligence(
+async def trader_intelligence(
+    db: D1Database,
     min_observations: int = 1,
     limit: int = 50,
 ) -> List[Dict[str, Any]]:
 
-    conn = connect()
+    rows = await db.all(
+        """
+        SELECT
+            username,
+            leaderboard,
+            timeframe,
+            category,
+            rank,
+            value,
+            observed_at
+        FROM leaderboard_snapshots
+        ORDER BY observed_at ASC
+        """
+    )
 
-    try:
-        rows = conn.execute(
-            """
-            SELECT
-                username,
-                leaderboard,
-                timeframe,
-                category,
-                rank,
-                value,
-                observed_at
-            FROM leaderboard_snapshots
-            ORDER BY observed_at ASC
-            """
-        ).fetchall()
-    finally:
-        conn.close()
-
-    #
     # username -> snapshot timestamp -> entries
-    #
     trader_snapshots = defaultdict(
         lambda: defaultdict(list)
     )
 
     for row in rows:
-
         trader_snapshots[
             row["username"]
         ][
@@ -384,7 +345,6 @@ def trader_intelligence(
             )
 
         current = snapshot_scores[-1]
-
         historical = snapshot_scores[:-1]
 
         historical_scores = [
@@ -467,6 +427,7 @@ def trader_intelligence(
                         ],
                 }
             )
+
         results.append(
             {
                 "username": username,
@@ -551,28 +512,31 @@ def trader_intelligence(
     return results[:limit]
 
 
-def top_traders(
+async def top_traders(
+    db: D1Database,
     min_observations: int = 1,
     limit: int = 20,
 ) -> List[Dict[str, Any]]:
 
-    return trader_intelligence(
+    return await trader_intelligence(
+        db,
         min_observations=min_observations,
         limit=limit,
     )
 
 
-def trader_detail(
+async def trader_detail(
+    db: D1Database,
     username: str,
 ) -> Optional[Dict[str, Any]]:
 
-    traders = trader_intelligence(
+    traders = await trader_intelligence(
+        db,
         min_observations=1,
         limit=1000,
     )
 
     for trader in traders:
-
         if (
             trader["username"].lower()
             == username.lower()
@@ -582,89 +546,87 @@ def trader_detail(
     return None
 
 
-def save_public_leaderboard(
+async def save_public_leaderboard(
+    db: D1Database,
     entries: List[Dict[str, Any]],
 ) -> int:
 
     if not entries:
         return 0
 
-    conn = connect()
-
     saved = 0
 
-    try:
+    for entry in entries:
 
-        for entry in entries:
+        username = entry["username"]
 
-            username = entry[
-                "username"
-            ]
+        await db.execute(
+            """
+            INSERT INTO traders(
+                username,
+                enabled
+            )
+            VALUES(?, 1)
+            ON CONFLICT(username)
+            DO NOTHING
+            """,
+            [
+                username,
+            ],
+        )
 
-            conn.execute(
-                """
-                INSERT INTO traders(
-                    username,
-                    enabled
-                )
-                VALUES(?, 1)
-
-                ON CONFLICT(username)
-                DO NOTHING
-                """,
-                (
-                    username,
+        result = await db.execute(
+            """
+            INSERT OR IGNORE INTO
+            leaderboard_snapshots
+            (
+                username,
+                leaderboard,
+                timeframe,
+                category,
+                rank,
+                value,
+                observed_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                username,
+                entry.get(
+                    "leaderboard",
+                    "",
                 ),
+                entry.get(
+                    "timeframe",
+                    "week",
+                ),
+                entry.get(
+                    "category",
+                    "",
+                ),
+                entry.get(
+                    "rank",
+                ),
+                entry.get(
+                    "value",
+                    0,
+                ),
+                entry["observed_at"],
+            ],
+        )
+
+        # Cloudflare D1 results expose changes through
+        # the result metadata.
+        changes = getattr(result, "meta", None)
+
+        if changes is not None:
+            changes_value = getattr(
+                changes,
+                "changes",
+                0,
             )
 
-            cursor = conn.execute(
-                """
-                INSERT OR IGNORE INTO
-                leaderboard_snapshots
-                (
-                    username,
-                    leaderboard,
-                    timeframe,
-                    category,
-                    rank,
-                    value,
-                    observed_at
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    username,
-                    entry.get(
-                        "leaderboard",
-                        "",
-                    ),
-                    entry.get(
-                        "timeframe",
-                        "week",
-                    ),
-                    entry.get(
-                        "category",
-                        "",
-                    ),
-                    entry.get(
-                        "rank",
-                    ),
-                    entry.get(
-                        "value",
-                        0,
-                    ),
-                    entry[
-                        "observed_at"
-                    ],
-                ),
-            )
-
-            if cursor.rowcount > 0:
+            if changes_value:
                 saved += 1
-
-        conn.commit()
-
-    finally:
-        conn.close()
 
     return saved
