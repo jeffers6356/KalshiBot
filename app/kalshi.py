@@ -216,7 +216,7 @@ class KalshiClient:
     async def markets(
         self,
         status: Optional[str] = "open",
-        limit: int = DEFAULT_PAGE_SIZE,
+        page_size: int = DEFAULT_PAGE_SIZE,
         max_pages: int = DEFAULT_MAX_PAGES,
     ) -> Dict[str, Any]:
 
@@ -227,7 +227,7 @@ class KalshiClient:
 
             data = await self.markets_page(
                 status=status,
-                limit=limit,
+                limit=page_size,
                 cursor=cursor,
             )
 
