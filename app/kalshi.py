@@ -14,21 +14,12 @@ DEFAULT_PAGE_SIZE = 200
 DEFAULT_MAX_PAGES = 20
 DEFAULT_RETRIES = 3
 
-SIGNING_PREFIX = "/trade-api/v2"
-
 
 class KalshiAPIError(Exception):
     """Raised when the Kalshi API request fails."""
 
 
 class KalshiClient:
-    """
-    Lightweight asynchronous Kalshi API client.
-
-    Supports authenticated RSA-PSS/SHA-256 requests using
-    Cloudflare Python Workers + WebCrypto.
-    """
-
     def __init__(
         self,
         base_url: str = BASE_URL,
@@ -68,15 +59,14 @@ class KalshiClient:
         if not self.api_key_id or not self.private_key_pem:
             return {}
 
-        # Kalshi requires Unix time in milliseconds.
         timestamp = str(int(Date.now()))
 
         # Remove query parameters.
         path_without_query = path.split("?")[0]
 
-        # Kalshi signs the COMPLETE API path, including /trade-api/v2.
+        # Kalshi signs the complete REST API path.
         signing_path = (
-            SIGNING_PREFIX
+            "/trade-api/v2"
             + path_without_query
         )
 
@@ -86,7 +76,7 @@ class KalshiClient:
             + signing_path
         )
 
-        # Extract the base64 DER key material from PEM.
+        # Extract DER bytes from the PKCS#8 PEM.
         pem_lines = [
             line.strip()
             for line in self.private_key_pem.strip().splitlines()
@@ -96,41 +86,34 @@ class KalshiClient:
         der_base64 = "".join(pem_lines)
         key_bytes = base64.b64decode(der_base64)
 
-        # Convert Python bytes -> JavaScript Uint8Array -> ArrayBuffer.
+        # Convert Python bytes to a JavaScript Uint8Array.
         key_array = Uint8Array.new(
             to_js(list(key_bytes))
         )
 
         key_data = key_array.buffer
 
-        # Convert message to a JavaScript Uint8Array.
+        # Convert message to JavaScript bytes.
         encoder = TextEncoder.new()
         message_array = encoder.encode(message)
 
-        # Import RSA private key.
+        # Kalshi Ed25519 API key.
         key = await crypto.subtle.importKey(
             "pkcs8",
             key_data,
-            to_js({
-                "name": "RSA-PSS",
-                "hash": "SHA-256",
-            }),
+            "Ed25519",
             False,
             to_js(["sign"]),
         )
 
-        # Sign with RSA-PSS using SHA-256.
         signature = await crypto.subtle.sign(
-            to_js({
-                "name": "RSA-PSS",
-                "saltLength": 32,
-            }),
+            "Ed25519",
             key,
-            message_array,
+            message_array.buffer,
         )
 
-        # Convert JavaScript ArrayBuffer -> Python bytes -> base64.
         signature_array = Uint8Array.new(signature)
+
         signature_bytes = bytes(
             signature_array.to_py()
         )
@@ -174,8 +157,9 @@ class KalshiClient:
                     or response.status_code >= 500
                 ):
                     if attempt < self.retries:
-                        delay = 1.0 * (2 ** attempt)
-                        await asyncio.sleep(delay)
+                        await asyncio.sleep(
+                            1.0 * (2 ** attempt)
+                        )
                         continue
 
                 if response.status_code >= 400:
@@ -195,8 +179,9 @@ class KalshiClient:
                 last_error = exc
 
                 if attempt < self.retries:
-                    delay = 1.0 * (2 ** attempt)
-                    await asyncio.sleep(delay)
+                    await asyncio.sleep(
+                        1.0 * (2 ** attempt)
+                    )
                     continue
 
                 break
