@@ -821,35 +821,33 @@ async def add_activity(
 
 @app.get("/api/smart-money")
 async def smart_money(
+    request: Request,
     window_minutes: int = 60,
     min_dollars: float = 500,
     min_trades: int = 2,
     limit: int = 25,
 ):
-    from .smart_money import smart_money_signals
+    """
+    Compatibility endpoint for the existing dashboard.
 
-    try:
-        signals = smart_money_signals(
-            window_minutes=window_minutes,
-            min_dollars=min_dollars,
-            min_trades=min_trades,
-            limit=limit,
-        )
+    Uses the current D1-backed smart-money candidate engine.
+    """
 
-        return {
-            "ok": True,
-            "window_minutes": window_minutes,
-            "min_dollars": min_dollars,
-            "min_trades": min_trades,
-            "signals": signals,
-        }
+    result = await smart_money_candidates(
+        request=request,
+        window_minutes=window_minutes,
+        min_dollars=min_dollars,
+        min_trades=min_trades,
+        limit=limit,
+    )
 
-    except Exception as exc:
-        return {
-            "ok": False,
-            "error": str(exc),
-            "signals": [],
-        }
+    return {
+        "ok": result["ok"],
+        "window_minutes": result["window_minutes"],
+        "min_dollars": result["min_dollars"],
+        "min_trades": result["min_trades"],
+        "signals": result["candidates"],
+    }
 
 @app.get("/api/traders")
 async def traders(
