@@ -2,7 +2,7 @@ import asyncio
 import base64
 from typing import Any, Dict, List, Optional
 
-import httpx
+import httpx2 as httpx
 
 from js import Buffer, Date, TextEncoder, crypto
 from pyodide.ffi import to_js
