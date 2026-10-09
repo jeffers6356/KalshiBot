@@ -38,6 +38,13 @@ def get_db(request: Request) -> D1Database:
     env = request.scope["env"]
     return D1Database(env.DB)
 
+def get_kalshi_client(request: Request) -> KalshiClient:
+    env = request.scope["env"]
+
+    return KalshiClient(
+        api_key_id=getattr(env, "KALSHI_API_KEY_ID", None),
+        private_key_pem=getattr(env, "KALSHI_PRIVATE_KEY", None),
+    )
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -59,8 +66,8 @@ async def health(request: Request):
         db_error = f"{type(exc).__name__}: {exc}"
 
     try:
-        async with KalshiClient() as client:
-            kalshi_ok = await client.health_check()
+       async with get_kalshi_client(request) as client:
+           kalshi_ok = await client.health_check()
     except Exception as exc:
         kalshi_error = f"{type(exc).__name__}: {exc}"
 
@@ -82,7 +89,7 @@ async def collect(request: Request):
     and store it in Cloudflare D1.
     """
 
-    async with KalshiClient() as client:
+    async with get_kalshi_client(request) as client:
         markets = await client.markets(
             status="open",
             page_size=200,
