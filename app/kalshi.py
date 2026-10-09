@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx2 as httpx
 
-from js import Buffer, Date, TextEncoder, crypto
+from js import Date, TextEncoder, crypto
 from pyodide.ffi import to_js
 
 
@@ -86,7 +86,8 @@ class KalshiClient:
 
         der_base64 = "".join(pem_lines)
 
-        key_data = getattr(Buffer, "from")(der_base64, "base64")
+        key_data = base64.b64decode(der_base64)
+        
         encoder = TextEncoder.new()
         message_data = encoder.encode(message)
 
@@ -130,7 +131,8 @@ class KalshiClient:
                 message_data,
             )
 
-        encoded_signature = getattr(Buffer, "from")(signature).toString("base64")
+        signature_bytes = bytes(signature.to_py())
+        encoded_signature = base64.b64encode(signature_bytes).decode("ascii")
 
         return {
             "KALSHI-ACCESS-KEY": self.api_key_id,
