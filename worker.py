@@ -40,13 +40,11 @@ class Default(WorkerEntrypoint):
         if controller.cron != "*/5 * * * *":
             return
 
-        from workers import fetch
+       from workers import fetch
 
         response = await fetch(
             "https://kalshibot.jeffers6356.workers.dev/api/collect",
-            {
-                "method": "POST",
-            },
+            method="POST",
         )
 
         print(
