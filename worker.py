@@ -13,18 +13,18 @@ if getattr(route, "path", None) != "/"
 ]
 
 @app.get("/{path}")
-async def frontend(path: str, request: Request):
-env = request.scope["env"]
-asset_url = f"https://assets.local/{path}"
-
-response = await env.ASSETS.fetch(asset_url)
-body = await response.bytes()
-
-return Response(
-    content=body,
-    status=response.status,
-    headers=dict(response.headers),
-)
+    async def frontend(path: str, request: Request):
+    env = request.scope["env"]
+    asset_url = f"https://assets.local/{path}"
+    
+    response = await env.ASSETS.fetch(asset_url)
+    body = await response.bytes()
+    
+    return Response(
+        content=body,
+        status=response.status,
+        headers=dict(response.headers),
+    )
 
 class Default(WorkerEntrypoint):
 
