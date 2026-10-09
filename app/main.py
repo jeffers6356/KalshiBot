@@ -287,6 +287,228 @@ async def get_trades(
 
     return rows
 
+@app.get("/api/trade-analytics")
+async def trade_analytics(
+    request: Request,
+    window_minutes: int = 60,
+    min_dollars: float = 0,
+    limit: int = 25,
+):
+    """
+    Analyze recently collected Kalshi trades.
+
+    Returns:
+    - largest trades
+    - most active markets
+    - YES/NO dollar pressure
+    - aggregate totals
+    """
+
+    window_minutes = max(1, min(window_minutes, 1440))
+    min_dollars = max(0, min_dollars)
+    limit = max(1, min(limit, 100))
+
+    db = get_db(request)
+
+    # ---------------------------------------------------------
+    # Largest trades
+    # ---------------------------------------------------------
+
+    largest_trades = await db.all(
+        """
+        SELECT
+            trade_id,
+            ticker,
+            count,
+            yes_price,
+            no_price,
+            side,
+            created_time,
+            is_block_trade,
+            CASE
+                WHEN side = 'yes'
+                    THEN count * yes_price
+                WHEN side = 'no'
+                    THEN count * no_price
+                ELSE 0
+            END AS dollar_value
+        FROM trades
+        WHERE created_time >= datetime(
+            'now',
+            '-' || ? || ' minutes'
+        )
+        AND (
+            CASE
+                WHEN side = 'yes'
+                    THEN count * yes_price
+                WHEN side = 'no'
+                    THEN count * no_price
+                ELSE 0
+            END
+        ) >= ?
+        ORDER BY dollar_value DESC
+        LIMIT ?
+        """,
+        [
+            window_minutes,
+            min_dollars,
+            limit,
+        ],
+    )
+
+    # ---------------------------------------------------------
+    # Market activity
+    # ---------------------------------------------------------
+
+    market_activity = await db.all(
+        """
+        SELECT
+            ticker,
+            COUNT(*) AS trade_count,
+
+            SUM(
+                CASE
+                    WHEN side = 'yes'
+                        THEN count * yes_price
+                    WHEN side = 'no'
+                        THEN count * no_price
+                    ELSE 0
+                END
+            ) AS total_dollars,
+
+            SUM(
+                CASE
+                    WHEN side = 'yes'
+                        THEN count * yes_price
+                    ELSE 0
+                END
+            ) AS yes_dollars,
+
+            SUM(
+                CASE
+                    WHEN side = 'no'
+                        THEN count * no_price
+                    ELSE 0
+                END
+            ) AS no_dollars
+
+        FROM trades
+
+        WHERE created_time >= datetime(
+            'now',
+            '-' || ? || ' minutes'
+        )
+
+        GROUP BY ticker
+
+        HAVING total_dollars >= ?
+
+        ORDER BY total_dollars DESC
+
+        LIMIT ?
+        """,
+        [
+            window_minutes,
+            min_dollars,
+            limit,
+        ],
+    )
+
+    # ---------------------------------------------------------
+    # Overall pressure
+    # ---------------------------------------------------------
+
+    pressure = await db.first(
+        """
+        SELECT
+
+            COUNT(*) AS trade_count,
+
+            SUM(
+                CASE
+                    WHEN side = 'yes'
+                        THEN count * yes_price
+                    ELSE 0
+                END
+            ) AS yes_dollars,
+
+            SUM(
+                CASE
+                    WHEN side = 'no'
+                        THEN count * no_price
+                    ELSE 0
+                END
+            ) AS no_dollars,
+
+            SUM(
+                CASE
+                    WHEN side = 'yes'
+                        THEN count * yes_price
+                    WHEN side = 'no'
+                        THEN count * no_price
+                    ELSE 0
+                END
+            ) AS total_dollars
+
+        FROM trades
+
+        WHERE created_time >= datetime(
+            'now',
+            '-' || ? || ' minutes'
+        )
+        """,
+        [window_minutes],
+    )
+
+    yes_dollars = float(
+        (pressure or {}).get("yes_dollars") or 0
+    )
+
+    no_dollars = float(
+        (pressure or {}).get("no_dollars") or 0
+    )
+
+    total_dollars = yes_dollars + no_dollars
+
+    if total_dollars > 0:
+        yes_percentage = (
+            yes_dollars / total_dollars
+        ) * 100
+
+        no_percentage = (
+            no_dollars / total_dollars
+        ) * 100
+    else:
+        yes_percentage = 0
+        no_percentage = 0
+
+    if yes_dollars > no_dollars:
+        pressure_direction = "YES"
+    elif no_dollars > yes_dollars:
+        pressure_direction = "NO"
+    else:
+        pressure_direction = "NEUTRAL"
+
+    return {
+        "ok": True,
+        "window_minutes": window_minutes,
+        "min_dollars": min_dollars,
+
+        "summary": {
+            "trade_count": int(
+                (pressure or {}).get("trade_count") or 0
+            ),
+            "yes_dollars": yes_dollars,
+            "no_dollars": no_dollars,
+            "total_dollars": total_dollars,
+            "yes_percentage": yes_percentage,
+            "no_percentage": no_percentage,
+            "pressure_direction": pressure_direction,
+        },
+
+        "largest_trades": largest_trades,
+        "market_activity": market_activity,
+    }
 
 @app.get("/api/trader-records")
 async def get_traders(request: Request):
