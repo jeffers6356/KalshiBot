@@ -42,9 +42,9 @@ class Default(WorkerEntrypoint):
 
        from workers import fetch
 
-       response = await fetch(
-           "https://kalshibot.jeffers6356.workers.dev/api/collect",
-           method="POST",
+        response = await fetch(
+            "https://kalshibot.jeffers6356.workers.dev/api/collect",
+            method="POST",
         )
 
         print(
