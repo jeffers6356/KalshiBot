@@ -14,9 +14,6 @@ DEFAULT_PAGE_SIZE = 200
 DEFAULT_MAX_PAGES = 20
 DEFAULT_RETRIES = 3
 
-_encoder = TextEncoder.new()
-
-
 class KalshiAPIError(Exception):
     """Raised when the Kalshi API request ultimately fails."""
 
@@ -90,7 +87,8 @@ class KalshiClient:
         der_base64 = "".join(pem_lines)
 
         key_data = getattr(Buffer, "from")(der_base64, "base64")
-        message_data = _encoder.encode(message)
+        encoder = TextEncoder.new()
+        message_data = encoder.encode(message)
 
         # Try Ed25519 first.
         #
