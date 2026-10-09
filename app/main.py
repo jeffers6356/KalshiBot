@@ -103,10 +103,18 @@ async def collect(request: Request):
 
     db = get_db(request)
 
-    market_count = 0
-    trade_count = 0
+    markets_fetched = 0
+    markets_updated = 0
+    trades_fetched = 0
+    new_trades = 0
+    duplicate_trades = 0
+
+    # ---------------------------------------------------------
+    # Markets
+    # ---------------------------------------------------------
 
     for market in markets.get("markets", []):
+
         ticker = market.get("ticker")
 
         if not ticker:
@@ -140,26 +148,58 @@ async def collect(request: Request):
                 ticker,
                 market.get("title"),
                 market.get("status"),
-                float(market.get("yes_bid_dollars") or 0),
-                float(market.get("yes_ask_dollars") or 0),
-                float(market.get("last_price_dollars") or 0),
-                float(market.get("volume_fp") or 0),
-                float(market.get("volume_24h_fp") or 0),
+                float(
+                    market.get("yes_bid_dollars") or 0
+                ),
+                float(
+                    market.get("yes_ask_dollars") or 0
+                ),
+                float(
+                    market.get("last_price_dollars") or 0
+                ),
+                float(
+                    market.get("volume_fp") or 0
+                ),
+                float(
+                    market.get("volume_24h_fp") or 0
+                ),
                 market.get("updated_time"),
             ],
         )
 
-        market_count += 1
+        markets_fetched += 1
+        markets_updated += 1
+
+    # ---------------------------------------------------------
+    # Trades
+    # ---------------------------------------------------------
 
     for trade in trades.get("trades", []):
+
         trade_id = trade.get("trade_id")
 
         if not trade_id:
             continue
 
+        trades_fetched += 1
+
+        # Check whether we already have this trade.
+        existing = await db.first(
+            """
+            SELECT trade_id
+            FROM trades
+            WHERE trade_id=?
+            """,
+            [trade_id],
+        )
+
+        if existing:
+            duplicate_trades += 1
+            continue
+
         await db.execute(
             """
-            INSERT OR IGNORE INTO trades(
+            INSERT INTO trades(
                 trade_id,
                 ticker,
                 count,
@@ -174,23 +214,35 @@ async def collect(request: Request):
             [
                 trade_id,
                 trade.get("ticker"),
-                float(trade.get("count_fp") or 0),
-                float(trade.get("yes_price_dollars") or 0),
-                float(trade.get("no_price_dollars") or 0),
+                float(
+                    trade.get("count_fp") or 0
+                ),
+                float(
+                    trade.get("yes_price_dollars") or 0
+                ),
+                float(
+                    trade.get("no_price_dollars") or 0
+                ),
                 trade.get("taker_side"),
                 trade.get("created_time"),
-                int(bool(trade.get("is_block_trade"))),
+                int(
+                    bool(
+                        trade.get("is_block_trade")
+                    )
+                ),
             ],
         )
 
-        trade_count += 1
+        new_trades += 1
 
     return {
         "ok": True,
-        "markets_collected": market_count,
-        "trades_collected": trade_count,
+        "markets_fetched": markets_fetched,
+        "markets_updated": markets_updated,
+        "trades_fetched": trades_fetched,
+        "new_trades": new_trades,
+        "duplicate_trades": duplicate_trades,
     }
-
 
 @app.get("/api/markets")
 async def get_markets(
