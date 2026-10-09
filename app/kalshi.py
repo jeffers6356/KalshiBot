@@ -100,7 +100,7 @@ class KalshiClient:
                 key_data,
                 to_js({"name": "Ed25519"}),
                 False,
-                ["sign"],
+                to_js(["sign"]),
             )
 
             signature = await crypto.subtle.sign(
@@ -119,7 +119,7 @@ class KalshiClient:
                     "hash": "SHA-256",
                 }),
                 False,
-                ["sign"],
+                to_js(["sign"]),
             )
 
             signature = await crypto.subtle.sign(
