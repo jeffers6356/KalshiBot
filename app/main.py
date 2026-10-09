@@ -287,6 +287,210 @@ async def get_trades(
 
     return rows
 
+@app.get("/api/smart-money-candidates")
+async def smart_money_candidates(
+    request: Request,
+    window_minutes: int = 60,
+    min_dollars: float = 500,
+    min_trades: int = 2,
+    limit: int = 25,
+):
+    """
+    Identify markets showing characteristics associated with
+    potentially significant/smart money flow.
+
+    IMPORTANT:
+    These are candidates, not confirmed smart-money trades.
+    Public trade data does not identify the underlying trader.
+    """
+
+    # Keep parameters within sensible limits.
+    window_minutes = max(5, min(window_minutes, 1440))
+    min_dollars = max(1.0, min(min_dollars, 1000000))
+    min_trades = max(1, min(min_trades, 100))
+    limit = max(1, min(limit, 100))
+
+    db = get_db(request)
+
+    rows = await db.all(
+        """
+        SELECT
+            t.ticker,
+
+            COALESCE(m.title, t.ticker) AS title,
+
+            COUNT(*) AS trade_count,
+
+            SUM(
+                CASE
+                    WHEN LOWER(t.side) = 'yes'
+                        THEN t.count * t.yes_price
+                    WHEN LOWER(t.side) = 'no'
+                        THEN t.count * t.no_price
+                    ELSE 0
+                END
+            ) AS total_dollars,
+
+            SUM(
+                CASE
+                    WHEN LOWER(t.side) = 'yes'
+                        THEN t.count * t.yes_price
+                    ELSE 0
+                END
+            ) AS yes_dollars,
+
+            SUM(
+                CASE
+                    WHEN LOWER(t.side) = 'no'
+                        THEN t.count * t.no_price
+                    ELSE 0
+                END
+            ) AS no_dollars,
+
+            MAX(
+                CASE
+                    WHEN LOWER(t.side) = 'yes'
+                        THEN t.count * t.yes_price
+                    WHEN LOWER(t.side) = 'no'
+                        THEN t.count * t.no_price
+                    ELSE 0
+                END
+            ) AS largest_trade
+
+        FROM trades t
+
+        LEFT JOIN markets m
+            ON m.ticker = t.ticker
+
+        WHERE t.created_time >= datetime(
+            'now',
+            '-' || ? || ' minutes'
+        )
+
+        GROUP BY t.ticker
+
+        HAVING
+            total_dollars >= ?
+            AND trade_count >= ?
+
+        ORDER BY total_dollars DESC
+        """,
+        [
+            window_minutes,
+            min_dollars,
+            min_trades,
+        ],
+    )
+
+    candidates = []
+
+    for row in rows:
+        total_dollars = float(row.get("total_dollars") or 0)
+        yes_dollars = float(row.get("yes_dollars") or 0)
+        no_dollars = float(row.get("no_dollars") or 0)
+        trade_count = int(row.get("trade_count") or 0)
+        largest_trade = float(row.get("largest_trade") or 0)
+
+        if total_dollars <= 0:
+            continue
+
+        # -1.0 = entirely NO
+        # +1.0 = entirely YES
+        pressure = (
+            (yes_dollars - no_dollars)
+            / total_dollars
+        )
+
+        direction = "YES" if pressure > 0 else "NO"
+
+        # -------------------------
+        # SCORE COMPONENTS
+        # -------------------------
+
+        # 30 points:
+        # Strong directional imbalance gets rewarded.
+        pressure_score = min(abs(pressure), 1.0) * 30
+
+        # 25 points:
+        # More money = stronger signal.
+        volume_score = min(
+            total_dollars / 5000.0,
+            1.0
+        ) * 25
+
+        # 25 points:
+        # Multiple trades are more meaningful than one isolated trade.
+        activity_score = min(
+            trade_count / 10.0,
+            1.0
+        ) * 25
+
+        # 20 points:
+        # Meaningful individual trades add confidence.
+        largest_trade_score = min(
+            largest_trade / 2000.0,
+            1.0
+        ) * 20
+
+        score = round(
+            pressure_score
+            + volume_score
+            + activity_score
+            + largest_trade_score
+        )
+
+        # Confidence deliberately considers BOTH score
+        # and the number of observations.
+        if score >= 80 and trade_count >= 5:
+            confidence = "HIGH"
+        elif score >= 60 and trade_count >= 2:
+            confidence = "MODERATE"
+        else:
+            confidence = "WATCH"
+
+        candidates.append(
+            {
+                "ticker": row.get("ticker"),
+                "title": row.get("title"),
+                "direction": direction,
+                "score": score,
+                "confidence": confidence,
+                "pressure": round(pressure, 4),
+                "trade_count": trade_count,
+                "total_dollars": round(total_dollars, 2),
+                "yes_dollars": round(yes_dollars, 2),
+                "no_dollars": round(no_dollars, 2),
+                "largest_trade": round(largest_trade, 2),
+                "components": {
+                    "pressure": round(pressure_score, 1),
+                    "volume": round(volume_score, 1),
+                    "activity": round(activity_score, 1),
+                    "largest_trade": round(largest_trade_score, 1),
+                },
+            }
+        )
+
+    # Highest score first.
+    candidates.sort(
+        key=lambda item: (
+            item["score"],
+            item["total_dollars"],
+            item["trade_count"],
+        ),
+        reverse=True,
+    )
+
+    candidates = candidates[:limit]
+
+    return {
+        "ok": True,
+        "window_minutes": window_minutes,
+        "min_dollars": min_dollars,
+        "min_trades": min_trades,
+        "count": len(candidates),
+        "candidates": candidates,
+    }
+
 @app.get("/api/trade-analytics")
 async def trade_analytics(
     request: Request,
