@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx2 as httpx
 
-from js import Date, TextEncoder, crypto
+from js import ArrayBuffer, Date, TextEncoder, crypto
 from pyodide.ffi import to_js
 
 
@@ -86,50 +86,37 @@ class KalshiClient:
 
         der_base64 = "".join(pem_lines)
 
-        key_data = base64.b64decode(der_base64)
+        key_bytes = base64.b64decode(der_base64)
+        
+        key_array = Uint8Array.new(to_js(list(key_bytes)))
+        key_data = key_array.buffer
         
         encoder = TextEncoder.new()
-        message_data = encoder.encode(message)
+        message_array = encoder.encode(message)
+        message_data = message_array.buffer
 
         # Try Ed25519 first.
         #
         # Kalshi recommends Ed25519 for new API keys.
-        try:
-            key = await crypto.subtle.importKey(
-                "pkcs8",
-                key_data,
-                to_js({"name": "Ed25519"}),
-                False,
-                to_js(["sign"]),
-            )
-
-            signature = await crypto.subtle.sign(
-                "Ed25519",
-                key,
-                message_data,
-            )
-
-        except Exception:
-            # Fall back to RSA-PSS / SHA-256.
-            key = await crypto.subtle.importKey(
-                "pkcs8",
-                key_data,
-                to_js({
-                    "name": "RSA-PSS",
-                    "hash": "SHA-256",
-                }),
-                False,
-                to_js(["sign"]),
-            )
-
-            signature = await crypto.subtle.sign(
-                to_js({
-                    "name": "RSA-PSS",
-                    "saltLength": 32,
-                }),
-                key,
-                message_data,
-            )
+        key = await crypto.subtle.importKey(
+            "pkcs8",
+            key_data,
+            to_js({
+                "name": "RSA-PSS",
+                "hash": "SHA-256",
+            }),
+            False,
+            to_js(["sign"]),
+        )
+        
+        signature = await crypto.subtle.sign(
+            to_js({
+                "name": "RSA-PSS",
+                "saltLength": 32,
+            }),
+            key,
+            message_data,
+        )
 
         signature_bytes = bytes(signature.to_py())
         encoded_signature = base64.b64encode(signature_bytes).decode("ascii")
