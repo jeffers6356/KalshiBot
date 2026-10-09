@@ -70,11 +70,7 @@ class Default(WorkerEntrypoint):
 
             db = D1Database(env.DB)
 
-            market_count = 0
-            trade_count = 0
-
             for market in markets.get("markets", []):
-
                 ticker = market.get("ticker")
 
                 if not ticker:
@@ -109,33 +105,25 @@ class Default(WorkerEntrypoint):
                         market.get("title"),
                         market.get("status"),
                         float(
-                            market.get("yes_bid_dollars")
-                            or 0
+                            market.get("yes_bid_dollars") or 0
                         ),
                         float(
-                            market.get("yes_ask_dollars")
-                            or 0
+                            market.get("yes_ask_dollars") or 0
                         ),
                         float(
-                            market.get("last_price_dollars")
-                            or 0
+                            market.get("last_price_dollars") or 0
                         ),
                         float(
-                            market.get("volume_fp")
-                            or 0
+                            market.get("volume_fp") or 0
                         ),
                         float(
-                            market.get("volume_24h_fp")
-                            or 0
+                            market.get("volume_24h_fp") or 0
                         ),
                         market.get("updated_time"),
                     ],
                 )
 
-                market_count += 1
-
             for trade in trades.get("trades", []):
-
                 trade_id = trade.get("trade_id")
 
                 if not trade_id:
@@ -159,36 +147,25 @@ class Default(WorkerEntrypoint):
                         trade_id,
                         trade.get("ticker"),
                         float(
-                            trade.get("count_fp")
-                            or 0
+                            trade.get("count_fp") or 0
                         ),
                         float(
-                            trade.get("yes_price_dollars")
-                            or 0
+                            trade.get("yes_price_dollars") or 0
                         ),
                         float(
-                            trade.get("no_price_dollars")
-                            or 0
+                            trade.get("no_price_dollars") or 0
                         ),
                         trade.get("taker_side"),
                         trade.get("created_time"),
                         int(
                             bool(
-                                trade.get(
-                                    "is_block_trade"
-                                )
+                                trade.get("is_block_trade")
                             )
                         ),
                     ],
                 )
 
-                trade_count += 1
-
-            print(
-                f"KalshiBot collection complete: "
-                f"{market_count} markets, "
-                f"{trade_count} trades"
-            )
+            print("KalshiBot scheduled collection complete")
 
         except Exception as exc:
             print(
