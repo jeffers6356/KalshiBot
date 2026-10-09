@@ -3,6 +3,13 @@
   "name": "kalshibot",
   "main": "worker.py",
   "compatibility_date": "2026-10-08",
+
+  "secrets": {
+    "required": [
+      "KALSHI_API_KEY_ID",
+      "KALSHI_PRIVATE_KEY"
+    ]
+  },
   "compatibility_flags": [
     "python_workers"
   ],
