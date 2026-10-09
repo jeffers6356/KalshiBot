@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx2 as httpx
 
-from js import ArrayBuffer, Date, TextEncoder, crypto
+from js import Date, TextEncoder, Uint8Array, crypto
 from pyodide.ffi import to_js
 
 
@@ -14,19 +14,19 @@ DEFAULT_PAGE_SIZE = 200
 DEFAULT_MAX_PAGES = 20
 DEFAULT_RETRIES = 3
 
+SIGNING_PREFIX = "/trade-api/v2"
+
+
 class KalshiAPIError(Exception):
-    """Raised when the Kalshi API request ultimately fails."""
+    """Raised when the Kalshi API request fails."""
 
 
 class KalshiClient:
     """
-    Lightweight asynchronous client for Kalshi's public API.
+    Lightweight asynchronous Kalshi API client.
 
-    Supports authenticated request signing with either:
-      - Ed25519
-      - RSA-PSS / SHA-256
-
-    Credentials are supplied at runtime from Cloudflare Worker secrets.
+    Supports authenticated RSA-PSS/SHA-256 requests using
+    Cloudflare Python Workers + WebCrypto.
     """
 
     def __init__(
@@ -64,20 +64,29 @@ class KalshiClient:
         method: str,
         path: str,
     ) -> Dict[str, str]:
+
         if not self.api_key_id or not self.private_key_pem:
             return {}
 
+        # Kalshi requires Unix time in milliseconds.
         timestamp = str(int(Date.now()))
 
+        # Remove query parameters.
         path_without_query = path.split("?")[0]
 
-        message = (
-            f"{timestamp}"
-            f"{method.upper()}"
-            f"{path_without_query}"
+        # Kalshi signs the COMPLETE API path, including /trade-api/v2.
+        signing_path = (
+            SIGNING_PREFIX
+            + path_without_query
         )
 
-        # Extract the base64 DER body from the PEM.
+        message = (
+            timestamp
+            + method.upper()
+            + signing_path
+        )
+
+        # Extract the base64 DER key material from PEM.
         pem_lines = [
             line.strip()
             for line in self.private_key_pem.strip().splitlines()
@@ -85,19 +94,20 @@ class KalshiClient:
         ]
 
         der_base64 = "".join(pem_lines)
-
         key_bytes = base64.b64decode(der_base64)
-        
-        key_array = Uint8Array.new(to_js(list(key_bytes)))
+
+        # Convert Python bytes -> JavaScript Uint8Array -> ArrayBuffer.
+        key_array = Uint8Array.new(
+            to_js(list(key_bytes))
+        )
+
         key_data = key_array.buffer
-        
+
+        # Convert message to a JavaScript Uint8Array.
         encoder = TextEncoder.new()
         message_array = encoder.encode(message)
-        message_data = message_array.buffer
 
-        # Try Ed25519 first.
-        #
-        # Kalshi recommends Ed25519 for new API keys.
+        # Import RSA private key.
         key = await crypto.subtle.importKey(
             "pkcs8",
             key_data,
@@ -108,18 +118,26 @@ class KalshiClient:
             False,
             to_js(["sign"]),
         )
-        
+
+        # Sign with RSA-PSS using SHA-256.
         signature = await crypto.subtle.sign(
             to_js({
                 "name": "RSA-PSS",
                 "saltLength": 32,
             }),
             key,
-            message_data,
+            message_array,
         )
 
-        signature_bytes = bytes(signature.to_py())
-        encoded_signature = base64.b64encode(signature_bytes).decode("ascii")
+        # Convert JavaScript ArrayBuffer -> Python bytes -> base64.
+        signature_array = Uint8Array.new(signature)
+        signature_bytes = bytes(
+            signature_array.to_py()
+        )
+
+        encoded_signature = base64.b64encode(
+            signature_bytes
+        ).decode("ascii")
 
         return {
             "KALSHI-ACCESS-KEY": self.api_key_id,
@@ -132,13 +150,18 @@ class KalshiClient:
         path: str,
         params: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+
         url = f"{self.base_url}/{path.lstrip('/')}"
 
         last_error = None
 
         for attempt in range(self.retries + 1):
+
             try:
-                auth_headers = await self._sign_request("GET", path)
+                auth_headers = await self._sign_request(
+                    "GET",
+                    path,
+                )
 
                 response = await self.client.get(
                     url,
@@ -146,7 +169,10 @@ class KalshiClient:
                     headers=auth_headers,
                 )
 
-                if response.status_code == 429 or response.status_code >= 500:
+                if (
+                    response.status_code == 429
+                    or response.status_code >= 500
+                ):
                     if attempt < self.retries:
                         delay = 1.0 * (2 ** attempt)
                         await asyncio.sleep(delay)
@@ -165,7 +191,7 @@ class KalshiClient:
             except KalshiAPIError:
                 raise
 
-            except (httpx.HTTPError, ValueError) as exc:
+            except Exception as exc:
                 last_error = exc
 
                 if attempt < self.retries:
@@ -213,6 +239,7 @@ class KalshiClient:
         cursor = None
 
         for _ in range(max_pages):
+
             data = await self.markets_page(
                 status=status,
                 limit=limit,
@@ -266,6 +293,7 @@ class KalshiClient:
         cursor = None
 
         for _ in range(max_pages):
+
             data = await self.trades_page(
                 limit=limit,
                 cursor=cursor,
@@ -287,6 +315,7 @@ class KalshiClient:
         }
 
     async def health_check(self) -> bool:
+
         data = await self.markets_page(
             status="open",
             limit=1,
