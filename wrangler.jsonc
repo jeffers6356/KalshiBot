@@ -13,6 +13,13 @@
   "compatibility_flags": [
     "python_workers"
   ],
+
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
+
   "assets": {
     "directory": "./static",
     "binding": "ASSETS",
