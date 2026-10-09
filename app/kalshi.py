@@ -89,7 +89,7 @@ class KalshiClient:
 
         der_base64 = "".join(pem_lines)
 
-        key_data = Buffer.from(der_base64, "base64")
+        key_data = getattr(Buffer, "from")(der_base64, "base64")
         message_data = _encoder.encode(message)
 
         # Try Ed25519 first.
@@ -132,7 +132,7 @@ class KalshiClient:
                 message_data,
             )
 
-        encoded_signature = Buffer.from(signature).toString("base64")
+        encoded_signature = getattr(Buffer, "from")(signature).toString("base64")
 
         return {
             "KALSHI-ACCESS-KEY": self.api_key_id,
