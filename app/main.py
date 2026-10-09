@@ -93,12 +93,12 @@ async def collect(request: Request):
         markets = await client.markets(
             status="open",
             page_size=200,
-            max_pages=20,
+            max_pages=1,
         )
 
         trades = await client.trades(
             limit=200,
-            max_pages=20,
+            max_pages=1,
         )
 
     db = get_db(request)
